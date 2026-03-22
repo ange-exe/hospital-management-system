@@ -1,213 +1,174 @@
-# Health Portal - Admin Panel
+# Hospital Management System - Admin Panel
 
-Complete admin panel for the Health Portal Hospital Management System.
+A comprehensive React-based admin interface for hospital staff to manage appointments, doctors, patients, medical records, and health content.
 
-## 🎯 Features
+##  Features
 
-### ✅ Dashboard
-- Overview statistics (total/pending/confirmed appointments)
-- Recent appointments list
-- Quick action cards
-- Real-time data from Firebase
+### Appointment Management
+- View all appointments with status tracking
+- Filter by department (8 medical departments)
+- Approve or cancel appointments
+- Real-time updates from Firebase
 
-### ✅ Appointments Management
-- View all appointments from all users
-- Filter by status (pending/confirmed/cancelled)
-- Filter by date
-- Approve appointments
-- Cancel appointments  
-- Delete appointments
-- View detailed appointment info
+### Medical Records Management
+- View patient records by ID
+- Add prescriptions (medication, dosage, frequency, duration)
+- Add lab results with scan/report URL support
+- Add appointment notes and diagnoses
+- Complete patient history view
 
-### ✅ Doctors Management
-- View all doctors
-- Add new doctors
+### Doctor Management
+- Add new doctors to the system
 - Edit doctor information
 - Delete doctors
-- Track specializations and departments
+- Assign doctors to departments
 
-### ✅ Patients View
-- List all patients (from appointments)
-- View patient appointment history
-- Track visit frequency
-- Patient details modal
+### Patient Management
+- View all registered patients
+- Search patients by name or ID
+- Track patient appointment count
 
-## 🔐 Login
+### Health Articles Management
+- View all health articles (dummy + custom)
+- Add new health articles
+- Filter articles by category
+- Manage health content for patient portal
 
-**Demo Password:** `admin123`
+##  Admin Access
 
-(Later: replace with proper Firebase Authentication)
+**Login Credentials:**
+- Password: `admin123`
 
-## 🚀 Setup Instructions
+##  System Overview
 
-### 1. Install Dependencies
+### Departments (18 Doctors Total)
+- **General Medicine:** Dr. Dadar, Dr. Bhandup
+- **Cardiology:** Dr. Andheri, Dr. Thane
+- **Pediatrics:** Dr. Lower Parel, Dr. Vikhroli
+- **Orthopedics:** Dr. Mulund, Dr. Bandra
+- **Mental Health:** Dr. Kurla, Dr. Ghatkopar
+- **Dermatology:** Dr. Borivali, Dr. Kandivali
+- **Gynecology:** Dr. Malad, Dr. Goregaon
+- **Dental:** Dr. Jogeshwari, Dr. Vile Parle
+- **Nursing Staff:** Nurse Chewbacca
 
+##  Tech Stack
+
+- **Frontend:** React 18.3.1 with Vite 6.0.1
+- **Database:** Firebase Firestore
+- **Styling:** Custom CSS with admin theme
+- **State Management:** React Hooks
+- **Authentication:** Simple password-based (development)
+
+##  Installation
+
+1. Clone the repository:
+```bash
+git clone <your-repo-url>
+cd hospital-admin-panel
+```
+
+2. Install dependencies:
 ```bash
 npm install
 ```
 
-### 2. Configure Firebase
+3. Configure Firebase:
+   - Use the SAME Firebase project as User Portal
+   - Update `src/firebase.js` with credentials
+   - Ensure all collections are accessible
 
-**IMPORTANT:** Copy your Firebase config from the user-side app!
-
-Open `src/firebase.js` and replace with YOUR Firebase configuration:
-
-```javascript
-const firebaseConfig = {
-  apiKey: "YOUR_ACTUAL_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
-```
-
-**Use the SAME Firebase project as your user-side app!**
-
-### 3. Run the Admin Panel
-
+4. Run the application:
 ```bash
 npm run dev
 ```
 
-The admin panel will start on **`http://localhost:5174`**
+The admin panel will run on `http://localhost:3001`
 
-(Different port from user app which runs on 5173!)
+##  Firebase Setup
 
-## 📁 File Structure
+### Collections Used:
+- `appointments` - All patient appointments
+- `prescriptions` - Doctor prescriptions
+- `labResults` - Lab test results
+- `healthArticles` - Health content
 
+### Security Rules:
+For development, Firestore rules should allow read/write. 
+**Note:** Implement proper authentication before production!
+
+##  Dashboard Stats
+
+- Total appointments count
+- Pending appointments
+- Approved appointments
+- Cancelled appointments
+
+##  Key Features Breakdown
+
+### Medical Records
+- **Patient Selection:** Search and select from all patients
+- **View History:** Complete appointment history
+- **Add Prescriptions:** Full prescription details with doctor name
+- **Add Lab Results:** Test name, results, normal range, notes, and image URLs
+- **Appointment Notes:** Add diagnosis and visit notes to any appointment
+
+### Health Articles
+- **Dummy Articles:** 4 default articles (cannot be deleted)
+- **Custom Articles:** Add unlimited articles from admin
+- **Categories:** 7 health categories
+- **Icons:** Choose from 17+ emoji icons
+- **Real-time Sync:** Articles instantly appear in user portal
+
+##  Project Structure
 ```
 hospital-admin-panel/
 ├── src/
 │   ├── components/
-│   │   ├── AdminLogin.jsx       # Login page
-│   │   ├── AdminNavbar.jsx      # Sidebar navigation
-│   │   ├── AdminDashboard.jsx   # Dashboard with stats
-│   │   ├── AdminAppointments.jsx # Appointments management
-│   │   ├── AdminDoctors.jsx     # Doctors management
-│   │   └── AdminPatients.jsx    # Patients list
-│   ├── App.jsx                  # Main app component
-│   ├── AdminApp.css             # All styling
-│   ├── firebase.js              # Firebase config
-│   └── main.jsx                 # Entry point
-├── index.html
-├── package.json
-├── vite.config.js
-└── README.md
+│   │   ├── Login.jsx              # Admin login page
+│   │   ├── AdminNavbar.jsx        # Admin navigation
+│   │   ├── AdminDashboard.jsx     # Dashboard with stats
+│   │   ├── AdminAppointments.jsx  # Appointments management
+│   │   ├── AdminDoctors.jsx       # Doctors management
+│   │   ├── AdminPatients.jsx      # Patients view
+│   │   ├── AdminMedicalRecords.jsx # Medical records management
+│   │   └── AdminHealthArticles.jsx # Health articles management
+│   ├── App.jsx                    # Main app component
+│   ├── admin.css                  # Admin styles
+│   ├── firebase.js                # Firebase configuration
+│   └── main.jsx                   # Entry point
+└── README.md                      # This file
 ```
 
-## 🎨 Design
+##  Related Projects
 
-- Professional dark theme
-- Clean, modern UI
-- Responsive design
-- Intuitive navigation
-- Real-time updates
+- [User Portal](../hospital-user-portal) - Patient-facing interface
 
-## 🔗 Integration with User App
+##  Future Enhancements
 
-Both apps connect to the **SAME Firebase database**:
+- Role-based access control (doctors, nurses, admin)
+- Analytics dashboard with charts
+- Appointment scheduling conflicts detection
+- Bulk operations for appointments
+- Export reports to PDF/Excel
+- Email notifications to patients
+- Real authentication system
 
-```
-User App (localhost:5173)
-    ↓
-Firebase Firestore ← Shared Database
-    ↑
-Admin App (localhost:5174)
-```
+##  Important Notes
 
-**What happens:**
-1. User books appointment → Saved to Firebase with `status: "pending"`
-2. Admin logs in → Sees the appointment
-3. Admin approves → Updates `status: "confirmed"`
-4. User refreshes → Sees confirmed status!
+- This is a development version with simple password authentication
+- Use the SAME Firebase project for both User and Admin panels
+- Create Firebase indexes when prompted (links provided in console)
+- Admin panel runs on port 3001 by default
 
-## 📊 Data Flow
+##  License
 
-### Appointments Collection
+Educational project for college exhibition.
 
-```javascript
-{
-  patientName: "Neha Patel",
-  patientId: "STU-2024-1847",
-  appointmentType: "General Checkup",
-  department: "General Medicine",
-  provider: "Dr. Anjali Sharma",
-  date: "2026-02-15",
-  time: "10:00",
-  reason: "Annual checkup",
-  symptoms: "None",
-  preferredContact: "email",
-  status: "pending",  // Admin can change this!
-  createdAt: Timestamp
-}
-```
+##  Author
 
-## 🎯 For Exhibition Demo
+(1) **Angelina Nadar** - [GitHub](https://github.com/anangelina19n-ctrl) | [LinkedIn]()
+(2) **Khushi Thorat** - [GitHub](https://github.com/) | [LinkedIn]()
 
-### Demo Script:
-
-1. **Login:** Enter password `admin123`
-2. **Dashboard:** Show stats overview
-3. **Appointments:** 
-   - Show all appointments
-   - Filter by status
-   - Approve a pending appointment
-   - Show detail modal
-4. **Doctors:** 
-   - Show doctors list
-   - Add a new doctor
-   - Edit doctor info
-5. **Patients:**
-   - Show patients list
-   - View patient history
-
-### Talking Points:
-
-- "Admin can manage the entire system from this panel"
-- "Real-time sync with user app through Firebase"
-- "Token system prevents overbooking"
-- "Complete appointment lifecycle management"
-
-## 🔧 Future Enhancements
-
-- [ ] Firebase Authentication (replace hardcoded password)
-- [ ] Email notifications to patients
-- [ ] Export appointments to CSV/Excel
-- [ ] Calendar view for appointments
-- [ ] Analytics and reporting
-- [ ] Doctor availability scheduling
-- [ ] SMS notifications
-- [ ] Multi-admin roles (super admin, staff, etc.)
-
-## 🐛 Troubleshooting
-
-**Can't login?**
-- Password is `admin123` (all lowercase)
-
-**No appointments showing?**
-- Make sure Firebase config is correct
-- Check if user app has booked any appointments
-- Check Firebase Console to see if data exists
-
-**Runs on wrong port?**
-- Check `vite.config.js` - should be port 5174
-- User app should be 5173, admin should be 5174
-
-## 📝 Notes
-
-- Currently uses simple password authentication
-- Doctors list is local (not in Firebase yet)
-- Both apps must use SAME Firebase project
-- Admin panel is separate React app
-
-## 🎉 You're Ready!
-
-Your admin panel is complete and ready for demo!
-
-**Password:** `admin123`  
-**Port:** `5174`  
-**Database:** Same as user app (Firebase)
-
-Good luck with your exhibition! 🚀
+Built for Xavier Institute of Engineering,  Mahim
+Mini Project 2026 for Sem 4

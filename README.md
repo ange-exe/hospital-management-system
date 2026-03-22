@@ -134,4 +134,8 @@ This project is for educational purposes.
 
 ##  Author
 
-Built for college exhibition project
+(1) **Angelina Nadar** - [GitHub](https://github.com/anangelina19n-ctrl) | [LinkedIn]()
+(2) **Khushi Thorat** - [GitHub](https://github.com/) | [LinkedIn]()
+
+Built for Xavier Institute of Engineering,  Mahim
+Mini Project 2026 for Sem 4

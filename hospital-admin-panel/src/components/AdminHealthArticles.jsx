@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebase';
+import { db,storage } from '../firebase';
 import { collection, getDocs, addDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 function AdminHealthArticles() {
   const [articles, setArticles] = useState([]);
@@ -17,6 +18,8 @@ function AdminHealthArticles() {
     excerpt: '',
     icon: '📄'
   });
+  const [articleFile, setArticleFile] = useState(null);
+  const [uploadingArticle, setUploadingArticle] = useState(false);
 
   const categories = [
     'All Articles',
@@ -119,27 +122,31 @@ function AdminHealthArticles() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (!formData.title || !formData.author || !formData.excerpt) {
       alert('Please fill all required fields');
       return;
     }
-
     try {
+      setUploadingArticle(true);
+      let fileUrl = '';
+
+      if (articleFile) {
+        const fileRef = ref(storage, `healthArticles/${Date.now()}_${articleFile.name}`);
+        await uploadBytes(fileRef, articleFile);
+        fileUrl = await getDownloadURL(fileRef);
+      }
+
       const articlesRef = collection(db, 'healthArticles');
       await addDoc(articlesRef, {
         ...formData,
-        date: new Date().toLocaleDateString('en-US', { 
-          month: 'long', 
-          day: 'numeric', 
-          year: 'numeric' 
+        fileUrl,
+        date: new Date().toLocaleDateString('en-US', {
+          month: 'long', day: 'numeric', year: 'numeric'
         }),
         createdAt: Timestamp.now()
       });
 
       alert('✅ Article added successfully!');
-      
-      // Reset form
       setFormData({
         title: '',
         category: 'Mental Health',
@@ -148,12 +155,14 @@ function AdminHealthArticles() {
         excerpt: '',
         icon: '📄'
       });
-      
+      setArticleFile(null);
       setShowAddForm(false);
       loadArticles();
     } catch (error) {
       console.error('Error adding article:', error);
       alert('Error adding article. Please try again.');
+    } finally {
+      setUploadingArticle(false);
     }
   };
 
@@ -305,10 +314,29 @@ function AdminHealthArticles() {
                       required
                     />
                   </div>
+
+                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                    <label className="form-label">Upload Article File (optional)</label>
+                    <input
+                      type="file"
+                      className="form-input"
+                      accept=".pdf,.doc,.docx"
+                      onChange={(e) => setArticleFile(e.target.files[0])}
+                      style={{ padding: '0.5rem' }}
+                    />
+                    {articleFile && (
+                      <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '0.25rem' }}>
+                        ✅ Selected: {articleFile.name}
+                      </div>
+                    )}
+                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
+                      Upload PDF or Word document of the full article
+                    </div>
+                  </div>
                 </div>
 
-                <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem' }}>
-                  📄 Add Article
+                <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem' }} disabled={uploadingArticle}>
+                  {uploadingArticle ? '⏳ Uploading...' : '📄 Add Article'}
                 </button>
               </form>
             </div>

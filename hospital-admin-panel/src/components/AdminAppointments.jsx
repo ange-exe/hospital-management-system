@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
-import { collection, getDocs, doc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, deleteDoc, query, orderBy, getDoc } from 'firebase/firestore';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 function AdminAppointments() {
   const [appointments, setAppointments] = useState([]);
@@ -10,6 +11,10 @@ function AdminAppointments() {
   const [dateFilter, setDateFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+  const [scanError, setScanError] = useState('');
+  const scannerRef = useRef(null);
 
   useEffect(() => {
     loadAppointments();
@@ -18,6 +23,88 @@ function AdminAppointments() {
   useEffect(() => {
     filterAppointments();
   }, [appointments, statusFilter, dateFilter, departmentFilter]);
+
+  useEffect(() => {
+    if (scanning) {
+      const scanner = new Html5QrcodeScanner('qr-reader', {
+  fps: 10,
+  qrbox: { width: 250, height: 250 },
+  rememberLastUsedCamera: true,
+  videoConstraints: {
+    facingMode: { ideal: "environment" }
+  }
+});
+      scanner.render(
+        async (scannedData) => {
+          try {
+            console.log('📱 Scanned data:', scannedData);
+            
+            let appointmentId;
+            try {
+              const parsed = JSON.parse(scannedData);
+              appointmentId = parsed.appointmentId;
+            } catch {
+              appointmentId = scannedData.trim();
+            }
+            
+            console.log('🔍 Looking for appointment ID:', appointmentId);
+            
+            // Always fetch directly from Firebase
+            const appointmentRef = doc(db, 'appointments', appointmentId);
+            const appointmentSnap = await getDoc(appointmentRef);
+            
+            if (appointmentSnap.exists()) {
+              const apptData = appointmentSnap.data();
+              setScanResult({
+                appointmentId: appointmentSnap.id,
+                patientName: apptData.patientName,
+                patientId: apptData.patientId,
+                token: apptData.tokenNumber,
+                date: apptData.date,
+                time: apptData.time,
+                department: apptData.department,
+                provider: apptData.provider,
+                status: apptData.status
+              });
+              setScanning(false);
+              setScanError('');
+            } else {
+              setScanError('Appointment not found! ID: ' + appointmentId);
+            }
+          } catch (error) {
+            console.error('❌ Scan processing error:', error);
+            setScanError('Error processing QR code. Try again.');
+          }
+        },
+        (err) => {
+          console.error('Scan error:', err);
+        }
+      );
+      scannerRef.current = scanner;
+    } else {
+      if (scannerRef.current) {
+        scannerRef.current.clear().catch(() => {});
+        scannerRef.current = null;
+      }
+    }
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.clear().catch(() => {});
+      }
+    };
+  }, [scanning]);
+
+  const markAsCompleted = async (appointmentId) => {
+    try {
+      const appointmentRef = doc(db, 'appointments', appointmentId);
+      await updateDoc(appointmentRef, { status: 'completed' });
+      setScanResult(prev => ({ ...prev, status: 'completed' }));
+      loadAppointments();
+    } catch (error) {
+      console.error('❌ Error:', error);
+      setScanError('Failed to update. Try again.');
+    }
+  };
 
   const loadAppointments = async () => {
     try {
@@ -128,6 +215,74 @@ function AdminAppointments() {
       </div>
 
       <div className="admin-content">
+      {/* QR Scanner Section */}
+        <div className="admin-card" style={{ marginBottom: '2rem' }}>
+          <div className="admin-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 className="admin-card-title">📷 Scan Patient QR Code</h2>
+            <button
+              className="btn btn-primary"
+              onClick={() => { setScanning(!scanning); setScanResult(null); setScanError(''); }}
+            >
+              {scanning ? '⏹ Stop Scanner' : '📷 Start Scanner'}
+            </button>
+          </div>
+
+          {scanning && (
+            <div style={{ padding: '1rem', textAlign: 'center' }}>
+              <p style={{ color: '#64748b', marginBottom: '1rem' }}>
+                Point your camera at the patient's QR code
+              </p>
+              <div id="qr-reader" style={{ width: '100%', maxWidth: '500px', margin: '0 auto' }} />
+            </div>
+          )}
+
+          {scanError && (
+            <div style={{ padding: '1rem', color: '#ef4444', textAlign: 'center' }}>
+              ⚠️ {scanError}
+            </div>
+          )}
+
+          {scanResult && (
+            <div style={{ padding: '1.5rem' }}>
+              <h3 style={{ marginBottom: '1rem', color: '#10b981' }}>✅ Patient Scanned!</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                <div><strong>Patient:</strong> {scanResult.patientName}</div>
+                <div><strong>Token:</strong> #{scanResult.token}</div>
+                <div><strong>Date:</strong> {scanResult.date}</div>
+                <div><strong>Time:</strong> {scanResult.time}</div>
+                <div><strong>Department:</strong> {scanResult.department}</div>
+                <div><strong>Doctor:</strong> {scanResult.provider}</div>
+              </div>
+
+              {scanResult.status === 'completed' ? (
+                <div style={{
+                  padding: '1rem',
+                  background: '#d1fae5',
+                  borderRadius: '8px',
+                  color: '#065f46',
+                  fontWeight: '600',
+                  textAlign: 'center'
+                }}>
+                  ✅ Already marked as Completed!
+                </div>
+              ) : (
+                <button
+                  onClick={() => markAsCompleted(scanResult.appointmentId)}
+                  className="btn btn-primary"
+                  style={{ width: '100%', background: '#059669', border: 'none' }}
+                >
+                  ✅ Mark as Completed
+                </button>
+              )}
+            </div>
+          )}
+
+          {!scanning && !scanResult && (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+              Click "Start Scanner" to scan a patient's QR code
+            </div>
+          )}
+        </div>
         {/* Filters */}
         <div className="filters">
           <div className="filter-item">

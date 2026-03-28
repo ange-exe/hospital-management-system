@@ -5,15 +5,15 @@ import { QRCodeSVG } from 'qrcode.react';
 
 function Appointments() {
   const [formData, setFormData] = useState({
-    appointmentType: '',
-    department: '',
-    provider: '',
-    date: '',
-    time: '',
-    reason: '',
-    symptoms: '',
-    preferredContact: 'email'
-  });
+  reasonForVisit: '',
+  customReason: '',
+  department: '',
+  provider: '',
+  date: '',
+  time: '',
+  symptoms: '',
+  preferredContact: 'email'
+});
 
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,10 +24,13 @@ function Appointments() {
   const [showQRModal, setShowQRModal] = useState(false);
   const [currentAppointment, setCurrentAppointment] = useState(null);
 
-  const appointmentTypes = [
-    'General Checkup', 'Urgent Care', 'Mental Health', 'Dental',
-    'Vision', 'Vaccination', 'Lab Work', 'Follow-up Visit'
-  ];
+  const reasonOptions = [
+  'URGENT CARE',
+  'General Checkup',
+  'Follow-up',
+  'Vaccination',
+  'Other'
+];
 
   const departments = [
     'General Medicine', 'Pediatrics', 'Cardiology', 'Dermatology',
@@ -93,17 +96,21 @@ function Appointments() {
   };
 
   const handleChange = async (e) => {
-    const { name, value } = e.target;
-    if (name === 'department') {
-      setFormData(prev => ({ ...prev, [name]: value, provider: '' }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
-    if (name === 'date' && value) {
-      setSelectedDate(value);
-      await loadSlotAvailability(value);
-    }
-  };
+  const { name, value } = e.target;
+  if (name === 'department') {
+    setFormData(prev => ({ ...prev, [name]: value, provider: '' }));
+  } else if (name === 'reasonForVisit' && value !== 'Other') {
+    // If not "Other", clear customReason
+    setFormData(prev => ({ ...prev, [name]: value, customReason: '' }));
+  } else {
+    setFormData(prev => ({ ...prev, [name]: value }));
+  }
+  
+  if (name === 'date' && value) {
+    setSelectedDate(value);
+    await loadSlotAvailability(value);
+  }
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -128,9 +135,15 @@ function Appointments() {
       });
       setShowQRModal(true);
       setFormData({
-        appointmentType: '', department: '', provider: '',
-        date: '', time: '', reason: '', symptoms: '', preferredContact: 'email'
-      });
+  reasonForVisit: '',
+  customReason: '',
+  department: '',
+  provider: '',
+  date: '',
+  time: '',
+  symptoms: '',
+  preferredContact: 'email'
+});
       setSelectedDate('');
       setSlotAvailability({});
       setTimeout(() => setShowSuccess(false), 5000);
@@ -146,9 +159,15 @@ function Appointments() {
     setShowQRModal(false);
     setCurrentAppointment(null);
     setFormData({
-      appointmentType: '', department: '', provider: '',
-      date: '', time: '', reason: '', symptoms: '', preferredContact: 'email'
-    });
+  reasonForVisit: '',
+  customReason: '',
+  department: '',
+  provider: '',
+  date: '',
+  time: '',
+  symptoms: '',
+  preferredContact: 'email'
+});
   };
 
   const handleCancel = async (appointmentId) => {
@@ -269,9 +288,10 @@ function Appointments() {
                       {appointment.time}
                     </div>
                   </div>
-                  <h4 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: 'var(--color-primary)' }}>
                     {appointment.appointmentType || appointment.type}
-                  </h4>
+                  <h4 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: 'var(--color-primary)' }}>
+  {appointment.reasonForVisit === 'Other' ? appointment.customReason : (appointment.reasonForVisit || appointment.appointmentType || 'N/A')}
+</h4>
                   <p style={{ color: 'var(--color-text-light)', marginBottom: '0.25rem' }}>
                     <strong>Provider:</strong> {appointment.provider}
                   </p>
@@ -334,15 +354,6 @@ function Appointments() {
         <form onSubmit={handleSubmit}>
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="appointmentType">Appointment Type *</label>
-              <select id="appointmentType" name="appointmentType" value={formData.appointmentType} onChange={handleChange} required>
-                <option value="">Select appointment type</option>
-                {appointmentTypes.map((type, index) => (
-                  <option key={index} value={type}>{type}</option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
               <label htmlFor="department">Department *</label>
               <select id="department" name="department" value={formData.department} onChange={handleChange} required>
                 <option value="">Select department</option>
@@ -392,15 +403,38 @@ function Appointments() {
             </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="reason">Reason for Visit *</label>
-            <input type="text" id="reason" name="reason" value={formData.reason} onChange={handleChange} placeholder="Brief description of why you need this appointment" required />
-          </div>
+         <div className="form-group">
+  <label htmlFor="reasonForVisit">Reason for Visit *</label>
+  <select
+    id="reasonForVisit"
+    name="reasonForVisit"
+    value={formData.reasonForVisit}
+    onChange={handleChange}
+    required
+  >
+    <option value="">Select reason for visit</option>
+    {reasonOptions.map((reason, index) => (
+      <option key={index} value={reason}>
+        {reason === 'URGENT CARE' ? '🚨 ' + reason : reason}
+      </option>
+    ))}
+  </select>
+</div>
 
-          <div className="form-group">
-            <label htmlFor="symptoms">Symptoms (if applicable)</label>
-            <textarea id="symptoms" name="symptoms" value={formData.symptoms} onChange={handleChange} placeholder="Describe any symptoms you're experiencing..." />
-          </div>
+{formData.reasonForVisit === 'Other' && (
+  <div className="form-group">
+    <label htmlFor="customReason">Please describe your symptoms *</label>
+    <textarea
+      id="customReason"
+      name="customReason"
+      value={formData.customReason || ''}
+      onChange={handleChange}
+      placeholder="Describe your symptoms or reason for visit..."
+      required
+      rows="4"
+    />
+  </div>
+)}
 
           <div className="form-group">
             <label>Preferred Contact Method</label>
@@ -473,6 +507,7 @@ function Appointments() {
                 <div style={{ marginBottom: '0.75rem' }}><strong>Time:</strong> {currentAppointment.time}</div>
                 <div style={{ marginBottom: '0.75rem' }}><strong>Department:</strong> {currentAppointment.department}</div>
                 <div style={{ marginBottom: '0.75rem' }}><strong>Doctor:</strong> {currentAppointment.provider}</div>
+                <div style={{ marginBottom: '0.75rem' }}><strong>Reason:</strong> {currentAppointment.reasonForVisit === 'Other' ? currentAppointment.customReason : currentAppointment.reasonForVisit}</div>
                 <div><strong>Patient:</strong> {currentAppointment.patientName}</div>
               </div>
               <div style={{
@@ -489,9 +524,9 @@ function Appointments() {
                 </p>
                 <QRCodeSVG
   value={currentAppointment.id}
-  size={220}
-  level="M"
-  includeMargin={true}
+  size={200}
+  level="L"
+  marginSize={10}
 />
               </div>
             </div>

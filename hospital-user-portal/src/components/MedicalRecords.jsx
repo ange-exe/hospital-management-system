@@ -232,21 +232,13 @@ function MedicalRecords() {
                           Show this at the hospital reception
                         </p>
                       </div>
+                      {console.log('Visit ID:', visit.id)}
                       <QRCodeSVG
-                        value={JSON.stringify({
-                          appointmentId: visit.id,
-                          patientId: visit.patientId,
-                          patientName: visit.patientName,
-                          date: visit.date,
-                          time: visit.time,
-                          department: visit.department,
-                          provider: visit.provider,
-                          token: visit.tokenNumber
-                        })}
-                        size={100}
-                        level="H"
-                        includeMargin={true}
-                      />
+  value={visit.id}
+  size={120}
+  level="L"
+  marginSize={10}
+/>
                     </div>
                   )}
                 </div>

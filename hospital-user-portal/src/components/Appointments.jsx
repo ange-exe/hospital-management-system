@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc, getDocs, query, orderBy, where, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, onSnapshot, query, orderBy, where, Timestamp, doc, updateDoc } from 'firebase/firestore';
+import { QRCodeSVG } from 'qrcode.react';
 
 function Appointments() {
   const [formData, setFormData] = useState({
@@ -20,30 +21,19 @@ function Appointments() {
   const [selectedDate, setSelectedDate] = useState('');
   const [slotAvailability, setSlotAvailability] = useState({});
   const SLOTS_PER_TIME = 5;
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [currentAppointment, setCurrentAppointment] = useState(null);
 
   const appointmentTypes = [
-    'General Checkup',
-    'Urgent Care',
-    'Mental Health',
-    'Dental',
-    'Vision',
-    'Vaccination',
-    'Lab Work',
-    'Follow-up Visit'
+    'General Checkup', 'Urgent Care', 'Mental Health', 'Dental',
+    'Vision', 'Vaccination', 'Lab Work', 'Follow-up Visit'
   ];
 
   const departments = [
-    'General Medicine',
-    'Pediatrics',
-    'Cardiology',
-    'Dermatology',
-    'Orthopedics',
-    'Mental Health',
-    'Gynecology',
-    'Dental'
+    'General Medicine', 'Pediatrics', 'Cardiology', 'Dermatology',
+    'Orthopedics', 'Mental Health', 'Gynecology', 'Dental'
   ];
 
-  // Complete doctors list with departments
   const allDoctors = {
     'Cardiology': ['Dr. Bhandup', 'Dr. Dadar'],
     'General Medicine': ['Dr. Thane', 'Dr. Kurla', 'Nurse Chinnapandyan Iyer'],
@@ -55,11 +45,8 @@ function Appointments() {
     'Dental': ['Dr. Diva', 'Dr. Nahur']
   };
 
-  // Get providers based on selected department
   const getAvailableProviders = () => {
-    if (!formData.department) {
-      return ['Please select a department first'];
-    }
+    if (!formData.department) return ['Please select a department first'];
     const doctors = allDoctors[formData.department] || [];
     return [...doctors, 'Any Available Provider'];
   };
@@ -67,53 +54,26 @@ function Appointments() {
   const availableProviders = getAvailableProviders();
 
   useEffect(() => {
-    loadAppointments();
-  }, []);
-
-  const loadAppointments = async () => {
-    try {
-      const appointmentsRef = collection(db, 'appointments');
-      const q = query(appointmentsRef, orderBy('createdAt', 'desc'));
-      const querySnapshot = await getDocs(q);
-      
+    const appointmentsRef = collection(db, 'appointments');
+    const q = query(appointmentsRef, orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const appointments = [];
-      querySnapshot.forEach((doc) => {
-        appointments.push({
-          id: doc.id,
-          ...doc.data()
-        });
+      querySnapshot.forEach((document) => {
+        appointments.push({ id: document.id, ...document.data() });
       });
-      
       setUpcomingAppointments(appointments);
-      console.log('✅ Loaded appointments from Firebase:', appointments);
-    } catch (error) {
-      console.error('❌ Error loading appointments:', error);
-      setUpcomingAppointments([
-        {
-          date: 'February 12, 2026',
-          time: '10:30 AM',
-          type: 'Follow-up Visit',
-          appointmentType: 'Follow-up Visit',
-          provider: 'Dr. Bhandup',
-          department: 'General Medicine',
-          location: 'Health Center, Room 204'
-        }
-      ]);
-    }
-  };
+    }, (error) => {
+      console.error('❌ Error listening to appointments:', error);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const checkSlotAvailability = async (date, time) => {
     try {
       const appointmentsRef = collection(db, 'appointments');
-      const q = query(
-        appointmentsRef, 
-        where('date', '==', date),
-        where('time', '==', time)
-      );
+      const q = query(appointmentsRef, where('date', '==', date), where('time', '==', time));
       const querySnapshot = await getDocs(q);
-      const bookedCount = querySnapshot.size;
-      const available = SLOTS_PER_TIME - bookedCount;
-      return Math.max(0, available);
+      return Math.max(0, SLOTS_PER_TIME - querySnapshot.size);
     } catch (error) {
       console.error('Error checking slots:', error);
       return SLOTS_PER_TIME;
@@ -125,35 +85,20 @@ function Appointments() {
       '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
       '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00'
     ];
-    
     const availability = {};
-    
     for (const time of timeSlots) {
-      const available = await checkSlotAvailability(date, time);
-      availability[time] = available;
+      availability[time] = await checkSlotAvailability(date, time);
     }
-    
     setSlotAvailability(availability);
-    console.log('✅ Slot availability loaded:', availability);
   };
 
   const handleChange = async (e) => {
     const { name, value } = e.target;
-    
-    // If department changes, reset provider selection
     if (name === 'department') {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value,
-        provider: ''  // Reset provider when department changes
-      }));
+      setFormData(prev => ({ ...prev, [name]: value, provider: '' }));
     } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
+      setFormData(prev => ({ ...prev, [name]: value }));
     }
-    
     if (name === 'date' && value) {
       setSelectedDate(value);
       await loadSlotAvailability(value);
@@ -163,41 +108,58 @@ function Appointments() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-
     try {
       const appointmentsRef = collection(db, 'appointments');
+      const nextToken = Date.now().toString().slice(-4);
       const docRef = await addDoc(appointmentsRef, {
         ...formData,
         status: 'pending',
         createdAt: Timestamp.now(),
         patientName: 'Raju Rastogi',
-        patientId: 'STU-2024-1847'
+        patientId: 'STU-2024-1847',
+        tokenNumber: nextToken
       });
-
-      console.log('✅ Appointment saved! Document ID:', docRef.id);
-      setShowSuccess(true);
-      
+      setCurrentAppointment({
+        id: docRef.id,
+        ...formData,
+        patientId: 'STU-2024-1847',
+        patientName: 'Raju Rastogi',
+        tokenNumber: nextToken
+      });
+      setShowQRModal(true);
       setFormData({
-        appointmentType: '',
-        department: '',
-        provider: '',
-        date: '',
-        time: '',
-        reason: '',
-        symptoms: '',
-        preferredContact: 'email'
+        appointmentType: '', department: '', provider: '',
+        date: '', time: '', reason: '', symptoms: '', preferredContact: 'email'
       });
-
       setSelectedDate('');
       setSlotAvailability({});
-      loadAppointments();
-
       setTimeout(() => setShowSuccess(false), 5000);
     } catch (error) {
       console.error('❌ Error saving appointment:', error);
       alert('Error submitting appointment. Please check console.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleCloseQR = () => {
+    setShowQRModal(false);
+    setCurrentAppointment(null);
+    setFormData({
+      appointmentType: '', department: '', provider: '',
+      date: '', time: '', reason: '', symptoms: '', preferredContact: 'email'
+    });
+  };
+
+  const handleCancel = async (appointmentId) => {
+    if (!window.confirm('Are you sure you want to cancel this appointment?')) return;
+    try {
+      const appointmentRef = doc(db, 'appointments', appointmentId);
+      await updateDoc(appointmentRef, { status: 'cancelled' });
+      console.log('✅ Appointment cancelled!');
+    } catch (error) {
+      console.error('❌ Error cancelling:', error);
+      alert('Error cancelling appointment. Please try again.');
     }
   };
 
@@ -212,6 +174,7 @@ function Appointments() {
         <p>Schedule new appointments and manage your upcoming visits</p>
       </div>
 
+      {/* AI Assistant Banner */}
       <div style={{
         background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
         borderRadius: '16px',
@@ -221,8 +184,7 @@ function Appointments() {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        boxShadow: '0 8px 32px rgba(99, 102, 241, 0.3)',
-        animation: 'slideUp 0.6s ease-out'
+        boxShadow: '0 8px 32px rgba(99, 102, 241, 0.3)'
       }}>
         <div>
           <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: 'white' }}>
@@ -243,18 +205,9 @@ function Appointments() {
             fontSize: '1rem',
             fontWeight: '700',
             cursor: 'pointer',
-            transition: 'var(--transition-smooth)',
             whiteSpace: 'nowrap',
             fontFamily: 'var(--font-body)',
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.2)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
           }}
         >
           📞 Call AI Agent
@@ -264,16 +217,16 @@ function Appointments() {
       {showSuccess && (
         <div className="success-message">
           <span className="success-message-icon">✓</span>
-          <span>Appointment saved to database! Check Firebase Console to see it!</span>
+          <span>Appointment saved to database!</span>
         </div>
       )}
 
+      {/* Upcoming Appointments */}
       <div className="card">
         <div className="card-header">
           <h2>Upcoming Appointments</h2>
           <span className="badge badge-info">{upcomingAppointments.length} Scheduled</span>
         </div>
-        
         {upcomingAppointments.length === 0 ? (
           <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-light)' }}>
             No appointments scheduled yet. Book one below!
@@ -281,11 +234,11 @@ function Appointments() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             {upcomingAppointments.map((appointment, index) => (
-              <div 
+              <div
                 key={appointment.id || index}
-                style={{ 
-                  padding: '1.5rem', 
-                  background: 'var(--color-background)', 
+                style={{
+                  padding: '1.5rem',
+                  background: 'var(--color-background)',
                   borderRadius: '12px',
                   border: '1px solid var(--color-border)',
                   display: 'flex',
@@ -294,26 +247,21 @@ function Appointments() {
                 }}
               >
                 <div style={{ flex: 1 }}>
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '1rem', 
-                    marginBottom: '1rem' 
-                  }}>
-                    <div style={{ 
-                      padding: '0.5rem 1rem', 
-                      background: 'var(--color-primary)', 
-                      color: 'white', 
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                    <div style={{
+                      padding: '0.5rem 1rem',
+                      background: 'var(--color-primary)',
+                      color: 'white',
                       borderRadius: '8px',
                       fontWeight: '600',
                       fontSize: '0.9rem'
                     }}>
                       {appointment.date}
                     </div>
-                    <div style={{ 
-                      padding: '0.5rem 1rem', 
-                      background: 'var(--color-accent)', 
-                      color: 'var(--color-primary-dark)', 
+                    <div style={{
+                      padding: '0.5rem 1rem',
+                      background: 'var(--color-accent)',
+                      color: 'var(--color-primary-dark)',
                       borderRadius: '8px',
                       fontWeight: '600',
                       fontSize: '0.9rem'
@@ -330,42 +278,55 @@ function Appointments() {
                   <p style={{ color: 'var(--color-text-light)', marginBottom: '0.25rem' }}>
                     <strong>Department:</strong> {appointment.department}
                   </p>
-                  <p style={{ color: 'var(--color-text-light)' }}>
+                  <p style={{ color: 'var(--color-text-light)', marginBottom: '0.5rem' }}>
                     <strong>Reason:</strong> {appointment.reason || 'N/A'}
                   </p>
+                  <p>
+                    <strong>Status: </strong>
+                    <span className={`badge badge-${
+                      appointment.status === 'confirmed' ? 'success' :
+                      appointment.status === 'completed' ? 'success' :
+                      appointment.status === 'cancelled' ? 'cancelled' :
+                      'pending'
+                    }`}>
+                      {appointment.status === 'completed' ? '✅ Completed' :
+                       appointment.status === 'confirmed' ? '✓ Confirmed' :
+                       appointment.status === 'cancelled' ? '✕ Cancelled' :
+                       '⏳ Pending'}
+                    </span>
+                  </p>
                 </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button 
-                    className="btn btn-secondary" 
-                    style={{ 
-                      padding: '0.5rem 1rem', 
-                      fontSize: '0.9rem',
+
+                {/* Only show buttons if not completed or cancelled */}
+                {appointment.status !== 'completed' && appointment.status !== 'cancelled' && (
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className="btn btn-secondary" style={{
+                      padding: '0.5rem 1rem', fontSize: '0.9rem',
                       background: 'var(--color-background)',
                       color: 'var(--color-primary)',
                       border: '2px solid var(--color-primary)'
-                    }}
-                  >
-                    Reschedule
-                  </button>
-                  <button 
-                    className="btn btn-secondary" 
-                    style={{ 
-                      padding: '0.5rem 1rem', 
-                      fontSize: '0.9rem',
+                    }}>
+                      Reschedule
+                    </button>
+                    <button className="btn btn-secondary" style={{
+                      padding: '0.5rem 1rem', fontSize: '0.9rem',
                       background: 'var(--color-background)',
                       color: '#C44536',
                       border: '2px solid #C44536'
                     }}
-                  >
-                    Cancel
-                  </button>
-                </div>
+                      onClick={() => handleCancel(appointment.id)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
 
+      {/* Schedule New Appointment */}
       <div className="card">
         <div className="card-header">
           <h2>Schedule New Appointment</h2>
@@ -374,29 +335,16 @@ function Appointments() {
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="appointmentType">Appointment Type *</label>
-              <select
-                id="appointmentType"
-                name="appointmentType"
-                value={formData.appointmentType}
-                onChange={handleChange}
-                required
-              >
+              <select id="appointmentType" name="appointmentType" value={formData.appointmentType} onChange={handleChange} required>
                 <option value="">Select appointment type</option>
                 {appointmentTypes.map((type, index) => (
                   <option key={index} value={type}>{type}</option>
                 ))}
               </select>
             </div>
-
             <div className="form-group">
               <label htmlFor="department">Department *</label>
-              <select
-                id="department"
-                name="department"
-                value={formData.department}
-                onChange={handleChange}
-                required
-              >
+              <select id="department" name="department" value={formData.department} onChange={handleChange} required>
                 <option value="">Select department</option>
                 {departments.map((dept, index) => (
                   <option key={index} value={dept}>{dept}</option>
@@ -407,16 +355,8 @@ function Appointments() {
 
           <div className="form-group">
             <label htmlFor="provider">Preferred Provider</label>
-            <select
-              id="provider"
-              name="provider"
-              value={formData.provider}
-              onChange={handleChange}
-              disabled={!formData.department}
-            >
-               <option value="">
-                {formData.department ? 'Select provider (optional)' : 'Select department first'}
-              </option>
+            <select id="provider" name="provider" value={formData.provider} onChange={handleChange} disabled={!formData.department}>
+              <option value="">{formData.department ? 'Select provider (optional)' : 'Select department first'}</option>
               {availableProviders.map((provider, index) => (
                 <option key={index} value={provider}>{provider}</option>
               ))}
@@ -426,72 +366,24 @@ function Appointments() {
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="date">Preferred Date *</label>
-              <input
-                type="date"
-                id="date"
-                name="date"
-                value={formData.date}
-                onChange={handleChange}
-                min={new Date().toISOString().split('T')[0]}
-                required
-              />
+              <input type="date" id="date" name="date" value={formData.date} onChange={handleChange} min={new Date().toISOString().split('T')[0]} required />
             </div>
-
             <div className="form-group">
               <label htmlFor="time">Preferred Time *</label>
-              <select
-                id="time"
-                name="time"
-                value={formData.time}
-                onChange={handleChange}
-                required
-                disabled={!selectedDate}
-              >
-                <option value="">
-                  {selectedDate ? 'Select time slot' : 'Please select a date first'}
-                </option>
-                
-                <option value="09:00" disabled={slotAvailability['09:00'] === 0}>
-                  9:00 AM {selectedDate && `(${slotAvailability['09:00'] !== undefined ? slotAvailability['09:00'] : SLOTS_PER_TIME} slots left)`}
-                </option>
-                <option value="09:30" disabled={slotAvailability['09:30'] === 0}>
-                  9:30 AM {selectedDate && `(${slotAvailability['09:30'] !== undefined ? slotAvailability['09:30'] : SLOTS_PER_TIME} slots left)`}
-                </option>
-                <option value="10:00" disabled={slotAvailability['10:00'] === 0}>
-                  10:00 AM {selectedDate && `(${slotAvailability['10:00'] !== undefined ? slotAvailability['10:00'] : SLOTS_PER_TIME} slots left)`}
-                </option>
-                <option value="10:30" disabled={slotAvailability['10:30'] === 0}>
-                  10:30 AM {selectedDate && `(${slotAvailability['10:30'] !== undefined ? slotAvailability['10:30'] : SLOTS_PER_TIME} slots left)`}
-                </option>
-                <option value="11:00" disabled={slotAvailability['11:00'] === 0}>
-                  11:00 AM {selectedDate && `(${slotAvailability['11:00'] !== undefined ? slotAvailability['11:00'] : SLOTS_PER_TIME} slots left)`}
-                </option>
-                <option value="11:30" disabled={slotAvailability['11:30'] === 0}>
-                  11:30 AM {selectedDate && `(${slotAvailability['11:30'] !== undefined ? slotAvailability['11:30'] : SLOTS_PER_TIME} slots left)`}
-                </option>
-                <option value="13:00" disabled={slotAvailability['13:00'] === 0}>
-                  1:00 PM {selectedDate && `(${slotAvailability['13:00'] !== undefined ? slotAvailability['13:00'] : SLOTS_PER_TIME} slots left)`}
-                </option>
-                <option value="13:30" disabled={slotAvailability['13:30'] === 0}>
-                  1:30 PM {selectedDate && `(${slotAvailability['13:30'] !== undefined ? slotAvailability['13:30'] : SLOTS_PER_TIME} slots left)`}
-                </option>
-                <option value="14:00" disabled={slotAvailability['14:00'] === 0}>
-                  2:00 PM {selectedDate && `(${slotAvailability['14:00'] !== undefined ? slotAvailability['14:00'] : SLOTS_PER_TIME} slots left)`}
-                </option>
-                <option value="14:30" disabled={slotAvailability['14:30'] === 0}>
-                  2:30 PM {selectedDate && `(${slotAvailability['14:30'] !== undefined ? slotAvailability['14:30'] : SLOTS_PER_TIME} slots left)`}
-                </option>
-                <option value="15:00" disabled={slotAvailability['15:00'] === 0}>
-                  3:00 PM {selectedDate && `(${slotAvailability['15:00'] !== undefined ? slotAvailability['15:00'] : SLOTS_PER_TIME} slots left)`}
-                </option>
-                <option value="15:30" disabled={slotAvailability['15:30'] === 0}>
-                  3:30 PM {selectedDate && `(${slotAvailability['15:30'] !== undefined ? slotAvailability['15:30'] : SLOTS_PER_TIME} slots left)`}
-                </option>
-                <option value="16:00" disabled={slotAvailability['16:00'] === 0}>
-                  4:00 PM {selectedDate && `(${slotAvailability['16:00'] !== undefined ? slotAvailability['16:00'] : SLOTS_PER_TIME} slots left)`}
-                </option>
+              <select id="time" name="time" value={formData.time} onChange={handleChange} required disabled={!selectedDate}>
+                <option value="">{selectedDate ? 'Select time slot' : 'Please select a date first'}</option>
+                {[
+                  ['09:00', '9:00 AM'], ['09:30', '9:30 AM'], ['10:00', '10:00 AM'],
+                  ['10:30', '10:30 AM'], ['11:00', '11:00 AM'], ['11:30', '11:30 AM'],
+                  ['13:00', '1:00 PM'], ['13:30', '1:30 PM'], ['14:00', '2:00 PM'],
+                  ['14:30', '2:30 PM'], ['15:00', '3:00 PM'], ['15:30', '3:30 PM'],
+                  ['16:00', '4:00 PM']
+                ].map(([value, label]) => (
+                  <option key={value} value={value} disabled={slotAvailability[value] === 0}>
+                    {label} {selectedDate && `(${slotAvailability[value] !== undefined ? slotAvailability[value] : SLOTS_PER_TIME} slots left)`}
+                  </option>
+                ))}
               </select>
-              
               {selectedDate && (
                 <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--color-text-light)' }}>
                   💡 Each time slot has {SLOTS_PER_TIME} available appointments
@@ -502,87 +394,40 @@ function Appointments() {
 
           <div className="form-group">
             <label htmlFor="reason">Reason for Visit *</label>
-            <input
-              type="text"
-              id="reason"
-              name="reason"
-              value={formData.reason}
-              onChange={handleChange}
-              placeholder="Brief description of why you need this appointment"
-              required
-            />
+            <input type="text" id="reason" name="reason" value={formData.reason} onChange={handleChange} placeholder="Brief description of why you need this appointment" required />
           </div>
 
           <div className="form-group">
             <label htmlFor="symptoms">Symptoms (if applicable)</label>
-            <textarea
-              id="symptoms"
-              name="symptoms"
-              value={formData.symptoms}
-              onChange={handleChange}
-              placeholder="Describe any symptoms you're experiencing..."
-            />
+            <textarea id="symptoms" name="symptoms" value={formData.symptoms} onChange={handleChange} placeholder="Describe any symptoms you're experiencing..." />
           </div>
 
           <div className="form-group">
             <label>Preferred Contact Method</label>
             <div style={{ display: 'flex', gap: '2rem', paddingTop: '0.5rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '400' }}>
-                <input
-                  type="radio"
-                  name="preferredContact"
-                  value="email"
-                  checked={formData.preferredContact === 'email'}
-                  onChange={handleChange}
-                  style={{ width: 'auto' }}
-                />
-                Email
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '400' }}>
-                <input
-                  type="radio"
-                  name="preferredContact"
-                  value="phone"
-                  checked={formData.preferredContact === 'phone'}
-                  onChange={handleChange}
-                  style={{ width: 'auto' }}
-                />
-                Phone
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '400' }}>
-                <input
-                  type="radio"
-                  name="preferredContact"
-                  value="sms"
-                  checked={formData.preferredContact === 'sms'}
-                  onChange={handleChange}
-                  style={{ width: 'auto' }}
-                />
-                SMS
-              </label>
+              {['email', 'phone', 'sms'].map((method) => (
+                <label key={method} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '400' }}>
+                  <input type="radio" name="preferredContact" value={method} checked={formData.preferredContact === method} onChange={handleChange} style={{ width: 'auto' }} />
+                  {method.charAt(0).toUpperCase() + method.slice(1)}
+                </label>
+              ))}
             </div>
           </div>
 
-          <button 
-            type="submit" 
-            className="btn btn-primary" 
-            style={{ width: '100%', marginTop: '1rem' }}
-            disabled={isSubmitting}
-          >
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }} disabled={isSubmitting}>
             {isSubmitting ? '⏳ Saving to Database...' : '✓ Submit Appointment Request'}
           </button>
         </form>
       </div>
 
-      <div style={{ 
-        padding: '1.5rem', 
-        background: 'rgba(74, 124, 155, 0.1)', 
+      {/* Important Information */}
+      <div style={{
+        padding: '1.5rem',
+        background: 'rgba(74, 124, 155, 0.1)',
         borderRadius: '12px',
         border: '1px solid var(--color-info)'
       }}>
-        <h4 style={{ marginBottom: '0.75rem', color: 'var(--color-info)' }}>
-          📌 Important Information
-        </h4>
+        <h4 style={{ marginBottom: '0.75rem', color: 'var(--color-info)' }}>📌 Important Information</h4>
         <ul style={{ paddingLeft: '1.5rem', color: 'var(--color-text-light)', lineHeight: '1.8' }}>
           <li>Appointment requests are typically confirmed within 24 hours</li>
           <li>Please arrive 10 minutes early for your appointment</li>
@@ -591,6 +436,73 @@ function Appointments() {
           <li>For urgent medical issues, call (555) 123-4567 or visit the emergency room</li>
         </ul>
       </div>
+
+      {/* QR Code Modal */}
+      {showQRModal && currentAppointment && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '2.5rem',
+            borderRadius: '16px',
+            maxWidth: '700px',
+            width: '90%',
+            textAlign: 'center',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.3)'
+          }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✅</div>
+            <h2 style={{ marginBottom: '0.5rem', color: 'var(--color-primary)' }}>Appointment Confirmed!</h2>
+            <p style={{ color: 'var(--color-text-light)', marginBottom: '2rem' }}>Token #{currentAppointment.tokenNumber}</p>
+
+            <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <div style={{
+                background: 'var(--color-background)',
+                padding: '1.5rem',
+                borderRadius: '12px',
+                textAlign: 'left',
+                flex: 1
+              }}>
+                <div style={{ marginBottom: '0.75rem' }}><strong>Date:</strong> {currentAppointment.date}</div>
+                <div style={{ marginBottom: '0.75rem' }}><strong>Time:</strong> {currentAppointment.time}</div>
+                <div style={{ marginBottom: '0.75rem' }}><strong>Department:</strong> {currentAppointment.department}</div>
+                <div style={{ marginBottom: '0.75rem' }}><strong>Doctor:</strong> {currentAppointment.provider}</div>
+                <div><strong>Patient:</strong> {currentAppointment.patientName}</div>
+              </div>
+              <div style={{
+                padding: '1rem',
+                background: 'var(--color-background)',
+                borderRadius: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '0.75rem'
+              }}>
+                <p style={{ fontSize: '0.875rem', color: 'var(--color-text-light)', fontWeight: '600', margin: 0 }}>
+                  Show at hospital
+                </p>
+                <QRCodeSVG
+  value={currentAppointment.id}
+  size={220}
+  level="M"
+  includeMargin={true}
+/>
+              </div>
+            </div>
+
+            <button onClick={handleCloseQR} className="btn btn-primary" style={{ width: '100%' }}>
+              Done ✓
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

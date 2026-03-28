@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 
 function HealthArticles() {
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -207,30 +207,21 @@ function HealthArticles() {
   ];
 
   useEffect(() => {
-    loadFirebaseArticles();
-  }, []);
-
-  const loadFirebaseArticles = async () => {
-    try {
-      const articlesRef = collection(db, 'healthArticles');
-      const querySnapshot = await getDocs(articlesRef);
-      
+    const articlesRef = collection(db, 'healthArticles');
+    const unsubscribe = onSnapshot(articlesRef, (snapshot) => {
       const firebaseList = [];
-      querySnapshot.forEach((doc) => {
-        firebaseList.push({
-          id: doc.id,
-          ...doc.data()
-        });
+      snapshot.forEach((doc) => {
+        firebaseList.push({ id: doc.id, ...doc.data() });
       });
-      
       setFirebaseArticles(firebaseList);
-      console.log('✅ Loaded Firebase articles:', firebaseList.length);
-    } catch (error) {
-      console.error('❌ Error loading Firebase articles:', error);
-    } finally {
       setLoading(false);
-    }
-  };
+      console.log('✅ Real-time articles updated:', firebaseList.length);
+    }, (error) => {
+      console.error('❌ Error listening to articles:', error);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // COMBINE ALL ARTICLES
   const allArticles = [...maternalArticles, ...generalArticles, ...firebaseArticles];

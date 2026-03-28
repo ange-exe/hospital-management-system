@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, orderBy } from 'firebase/firestore';
+import { QRCodeSVG } from 'qrcode.react';
 
 function MedicalRecords() {
   const [loading, setLoading] = useState(true);
@@ -20,87 +21,65 @@ function MedicalRecords() {
   };
 
   useEffect(() => {
-    loadMedicalRecords();
-  }, []);
+    setLoading(true);
 
-  const loadMedicalRecords = async () => {
-    try {
-      // Load appointments
-      const appointmentsRef = collection(db, 'appointments');
-      const appointmentsQuery = query(
-        appointmentsRef,
-        where('patientId', '==', currentUser.id),
-        orderBy('createdAt', 'desc')
-      );
-      const appointmentsSnapshot = await getDocs(appointmentsQuery);
-      
-      const appointmentsList = [];
-      appointmentsSnapshot.forEach((doc) => {
-        appointmentsList.push({
-          id: doc.id,
-          ...doc.data()
-        });
-      });
-      setAppointments(appointmentsList);
-
-      // Load prescriptions
-      let prescriptionsList = [];
-      try {
-        const prescriptionsRef = collection(db, 'prescriptions');
-        const prescriptionsQuery = query(
-          prescriptionsRef,
-          where('patientId', '==', currentUser.id),
-          orderBy('createdAt', 'desc')
-        );
-        const prescriptionsSnapshot = await getDocs(prescriptionsQuery);
-        
-        prescriptionsSnapshot.forEach((doc) => {
-          prescriptionsList.push({
-            id: doc.id,
-            ...doc.data()
-          });
-        });
-        setPrescriptions(prescriptionsList);
-      } catch (err) {
-        console.log('No prescriptions yet');
-        console.error('Prescription error:', err);
-      }
-
-      // Load lab results
-      let labResultsList = [];
-      try {
-        const labResultsRef = collection(db, 'labResults');
-        const labResultsQuery = query(
-          labResultsRef,
-          where('patientId', '==', currentUser.id),
-          orderBy('createdAt', 'desc')
-        );
-        const labResultsSnapshot = await getDocs(labResultsQuery);
-        
-        labResultsSnapshot.forEach((doc) => {
-          labResultsList.push({
-            id: doc.id,
-            ...doc.data()
-          });
-        });
-        setLabResults(labResultsList);
-      } catch (err) {
-        console.log('No lab results yet');
-        console.error('Lab results error:', err);
-      }
-
-      console.log('✅ Loaded:', { 
-        appointments: appointmentsList.length, 
-        prescriptions: prescriptions.length, 
-        labResults: labResults.length 
-      });
-
-    } catch (error) {
-      console.error('❌ Error loading medical records:', error);
-    } finally {
+    // Real-time appointments
+    const appointmentsRef = collection(db, 'appointments');
+    const appointmentsQuery = query(
+      appointmentsRef,
+      where('patientId', '==', currentUser.id),
+      orderBy('createdAt', 'desc')
+    );
+    const unsubscribeAppointments = onSnapshot(appointmentsQuery, (snapshot) => {
+      const list = [];
+      snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
+      setAppointments(list);
       setLoading(false);
-    }
-  };
+      console.log('✅ Real-time appointments updated:', list.length);
+    }, (error) => {
+      console.error('❌ Appointments error:', error);
+      setLoading(false);
+    });
+
+    // Real-time prescriptions
+    const prescriptionsRef = collection(db, 'prescriptions');
+    const prescriptionsQuery = query(
+      prescriptionsRef,
+      where('patientId', '==', currentUser.id),
+      orderBy('createdAt', 'desc')
+    );
+    const unsubscribePrescriptions = onSnapshot(prescriptionsQuery, (snapshot) => {
+      const list = [];
+      snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
+      setPrescriptions(list);
+      console.log('✅ Real-time prescriptions updated:', list.length);
+    }, (error) => {
+      console.error('❌ Prescriptions error:', error);
+    });
+
+    // Real-time lab results
+    const labResultsRef = collection(db, 'labResults');
+    const labResultsQuery = query(
+      labResultsRef,
+      where('patientId', '==', currentUser.id),
+      orderBy('createdAt', 'desc')
+    );
+    const unsubscribeLabResults = onSnapshot(labResultsQuery, (snapshot) => {
+      const list = [];
+      snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
+      setLabResults(list);
+      console.log('✅ Real-time lab results updated:', list.length);
+    }, (error) => {
+      console.error('❌ Lab results error:', error);
+    });
+
+    // Cleanup all listeners when component unmounts
+    return () => {
+      unsubscribeAppointments();
+      unsubscribePrescriptions();
+      unsubscribeLabResults();
+    };
+  }, []);
 
   if (loading) {
     return <div className="loading">Loading medical records...</div>;
@@ -227,11 +206,49 @@ function MedicalRecords() {
                   {visit.notes && (
                     <p><strong>Notes:</strong> {visit.notes}</p>
                   )}
-                  <p><strong>Status:</strong> <span className={`badge badge-${
+                 <p><strong>Status:</strong> <span className={`badge badge-${
                     visit.status === 'confirmed' ? 'success' : 
                     visit.status === 'cancelled' ? 'cancelled' : 
                     'pending'
                   }`}>{visit.status || 'pending'}</span></p>
+
+                  {/* QR Code - shows until appointment is completed */}
+                  {visit.status !== 'completed' && visit.status !== 'cancelled' && (
+                    <div style={{
+                      marginTop: '1rem',
+                      padding: '1rem',
+                      background: 'white',
+                      borderRadius: '12px',
+                      border: '1px solid var(--color-border)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '1.5rem'
+                    }}>
+                      <div>
+                        <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--color-primary)', marginBottom: '0.25rem' }}>
+                          🏥 Your Appointment QR Code
+                        </p>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--color-text-light)' }}>
+                          Show this at the hospital reception
+                        </p>
+                      </div>
+                      <QRCodeSVG
+                        value={JSON.stringify({
+                          appointmentId: visit.id,
+                          patientId: visit.patientId,
+                          patientName: visit.patientName,
+                          date: visit.date,
+                          time: visit.time,
+                          department: visit.department,
+                          provider: visit.provider,
+                          token: visit.tokenNumber
+                        })}
+                        size={100}
+                        level="H"
+                        includeMargin={true}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

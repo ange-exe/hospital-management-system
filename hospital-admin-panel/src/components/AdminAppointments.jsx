@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
-import { collection, getDocs, doc, updateDoc, deleteDoc, query, orderBy, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, deleteDoc, query, orderBy, getDoc, addDoc, where, Timestamp } from 'firebase/firestore';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
 function AdminAppointments() {
@@ -15,7 +15,44 @@ function AdminAppointments() {
   const [scanResult, setScanResult] = useState(null);
   const [scanError, setScanError] = useState('');
   const scannerRef = useRef(null);
+const [showBookForm, setShowBookForm] = useState(false);
+const [bookForm, setBookForm] = useState({
+  patientName: '',
+  patientId: '',
+  department: '',
+  provider: '',
+  date: '',
+  time: '',
+  reasonForVisit: '',
+  symptoms: '',
+  preferredContact: 'email'
+});
+const [isBooking, setIsBooking] = useState(false);
+const [bookSuccess, setBookSuccess] = useState(false);
+const [slotAvailability, setSlotAvailability] = useState({});
+const departments = [
+  'General Medicine', 'Pediatrics', 'Cardiology', 'Dermatology',
+  'Orthopedics', 'Mental Health', 'Gynecology', 'Dental'
+];
 
+const allDoctors = {
+  'Cardiology': ['Dr. Bhandup', 'Dr. Dadar'],
+  'General Medicine': ['Dr. Thane', 'Dr. Kurla', 'Nurse Chinnapandyan Iyer'],
+  'Pediatrics': ['Dr. Andheri', 'Dr. Sion'],
+  'Orthopedics': ['Dr. Lower Parel', 'Dr. Madh'],
+  'Mental Health': ['Dr. Parel', 'Dr. Goregaon'],
+  'Dermatology': ['Dr. Ghatkopar', 'Dr. Matunga Road'],
+  'Gynecology': ['Dr. Matunga', 'Dr. Wadala'],
+  'Dental': ['Dr. Diva', 'Dr. Nahur']
+};
+
+const timeSlots = [
+  ['09:00', '9:00 AM'], ['09:30', '9:30 AM'], ['10:00', '10:00 AM'],
+  ['10:30', '10:30 AM'], ['11:00', '11:00 AM'], ['11:30', '11:30 AM'],
+  ['13:00', '1:00 PM'], ['13:30', '1:30 PM'], ['14:00', '2:00 PM'],
+  ['14:30', '2:30 PM'], ['15:00', '3:00 PM'], ['15:30', '3:30 PM'],
+  ['16:00', '4:00 PM']
+];
   useEffect(() => {
     loadAppointments();
   }, []);
@@ -95,16 +132,47 @@ function AdminAppointments() {
   }, [scanning]);
 
   const markAsCompleted = async (appointmentId) => {
-    try {
-      const appointmentRef = doc(db, 'appointments', appointmentId);
-      await updateDoc(appointmentRef, { status: 'completed' });
-      setScanResult(prev => ({ ...prev, status: 'completed' }));
-      loadAppointments();
-    } catch (error) {
-      console.error('❌ Error:', error);
-      setScanError('Failed to update. Try again.');
+  try {
+    const appointmentRef = doc(db, 'appointments', appointmentId);
+    const appointmentSnap = await getDoc(appointmentRef);
+    const apptData = appointmentSnap.data();
+
+    await updateDoc(appointmentRef, { status: 'completed', completedAt: Timestamp.now() });
+
+    await addDoc(collection(db, 'receipts'), {
+      appointmentId,
+      patientId: apptData.patientId,
+      patientName: apptData.patientName,
+      department: apptData.department,
+      provider: apptData.provider,
+      date: apptData.date,
+      time: apptData.time,
+      reasonForVisit: apptData.reasonForVisit || apptData.appointmentType || 'General Visit',
+      tokenNumber: apptData.tokenNumber,
+      generatedAt: Timestamp.now(),
+      paid: false
+    });
+
+    setScanResult(prev => ({ ...prev, status: 'completed' }));
+    loadAppointments();
+  } catch (error) {
+    setScanError('Failed to update. Try again.');
+  }
+};
+
+const markAsPaid = async (appointmentId) => {
+  try {
+    const receiptsRef = collection(db, 'receipts');
+    const q = query(receiptsRef, where('appointmentId', '==', appointmentId));
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+      await updateDoc(doc(db, 'receipts', snapshot.docs[0].id), { paid: true, paidAt: Timestamp.now() });
     }
-  };
+    setScanResult(prev => ({ ...prev, paid: true }));
+  } catch (error) {
+    setScanError('Failed to mark as paid. Try again.');
+  }
+};
 
   const loadAppointments = async () => {
     try {
@@ -121,7 +189,7 @@ function AdminAppointments() {
       });
       
       setAppointments(appointmentsList);
-      console.log('✅ Loaded appointments:', appointmentsList.length);
+      console.log(' Loaded appointments:', appointmentsList.length);
     } catch (error) {
       console.error('❌ Error loading appointments:', error);
     } finally {
@@ -150,6 +218,69 @@ function AdminAppointments() {
     setFilteredAppointments(filtered);
   };
 
+  const checkSlotAvailability = async (date, time) => {
+  try {
+    const q = query(collection(db, 'appointments'), where('date', '==', date), where('time', '==', time));
+    const snapshot = await getDocs(q);
+    return Math.max(0, 5 - snapshot.size);
+  } catch (error) {
+    return 5;
+  }
+};
+
+const loadSlotAvailability = async (date) => {
+  const slots = ['09:00','09:30','10:00','10:30','11:00','11:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00'];
+  const availability = {};
+  for (const time of slots) {
+    availability[time] = await checkSlotAvailability(date, time);
+  }
+  setSlotAvailability(availability);
+};
+
+const handlePatientIdChange = async (patientId) => {
+  setBookForm({ ...bookForm, patientId });
+  if (!patientId) return;
+  // Search appointments to find patient name
+  const snapshot = await getDocs(query(
+    collection(db, 'appointments'),
+    where('patientId', '==', patientId)
+  ));
+  if (!snapshot.empty) {
+    const name = snapshot.docs[0].data().patientName;
+    setBookForm(prev => ({ ...prev, patientId, patientName: name }));
+  }
+};
+
+  const handleBookForPatient = async (e) => {
+  e.preventDefault();
+  if (!bookForm.patientName || !bookForm.patientId || !bookForm.department || !bookForm.date || !bookForm.time || !bookForm.reasonForVisit) {
+    alert('Please fill all required fields.');
+    return;
+  }
+  setIsBooking(true);
+  try {
+    const tokenNumber = Date.now().toString().slice(-4);
+    await addDoc(collection(db, 'appointments'), {
+      ...bookForm,
+      status: 'confirmed',
+      tokenNumber,
+      bookedByAdmin: true,
+      createdAt: Timestamp.now()
+    });
+    setBookSuccess(true);
+    setBookForm({
+      patientName: '', patientId: '', department: '', provider: '',
+      date: '', time: '', reasonForVisit: '', symptoms: '', preferredContact: 'email'
+    });
+    setTimeout(() => { setBookSuccess(false); setShowBookForm(false); }, 3000);
+    loadAppointments();
+  } catch (error) {
+    alert('Error booking appointment. Please try again.');
+  } finally {
+    setIsBooking(false);
+  }
+};
+
   const handleApprove = async (appointmentId) => {
     if (!confirm('Approve this appointment?')) return;
 
@@ -159,7 +290,7 @@ function AdminAppointments() {
         status: 'confirmed'
       });
       
-      alert('✅ Appointment approved!');
+      alert(' Appointment approved!');
       loadAppointments();
     } catch (error) {
       console.error('Error approving appointment:', error);
@@ -176,7 +307,7 @@ function AdminAppointments() {
         status: 'cancelled'
       });
       
-      alert('✅ Appointment cancelled!');
+      alert(' Appointment cancelled!');
       loadAppointments();
     } catch (error) {
       console.error('Error cancelling appointment:', error);
@@ -191,7 +322,7 @@ function AdminAppointments() {
       const appointmentRef = doc(db, 'appointments', appointmentId);
       await deleteDoc(appointmentRef);
       
-      alert('✅ Appointment deleted!');
+      alert(' Appointment deleted!');
       loadAppointments();
     } catch (error) {
       console.error('Error deleting appointment:', error);
@@ -215,6 +346,105 @@ function AdminAppointments() {
       </div>
 
       <div className="admin-content">
+        {/* Book Appointment for Patient */}
+<div className="admin-card" style={{ marginBottom: '2rem' }}>
+  <div className="admin-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <h2 className="admin-card-title"> Book Appointment for Patient</h2>
+    <button className="btn btn-primary" onClick={() => { setShowBookForm(!showBookForm); setBookSuccess(false); }}>
+      {showBookForm ? '✕ Close' : '+ Book Appointment'}
+    </button>
+  </div>
+
+  {bookSuccess && (
+    <div style={{ margin: '1rem 1.5rem', padding: '1rem', background: '#d1fae5', borderRadius: '8px', color: '#065f46', fontWeight: '600' }}>
+       Appointment booked! Status set to Confirmed.
+    </div>
+  )}
+
+  {showBookForm && (
+    <div style={{ padding: '1.5rem' }}>
+      <form onSubmit={handleBookForPatient}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+          <div className="form-group">
+            <label className="form-label">Patient Name *</label>
+            <input type="text" className="form-input" placeholder="e.g., Raju Rastogi"
+              value={bookForm.patientName}
+              onChange={(e) => setBookForm({ ...bookForm, patientName: e.target.value })} required />
+          </div>
+          <div className="form-group">
+  <label className="form-label">Patient ID *</label>
+  <input type="text" className="form-input" placeholder="e.g., STU-2024-1847"
+    value={bookForm.patientId}
+    onChange={(e) => handlePatientIdChange(e.target.value)} required />
+</div>
+          <div className="form-group">
+            <label className="form-label">Department *</label>
+            <select className="form-select" value={bookForm.department} required
+              onChange={(e) => setBookForm({ ...bookForm, department: e.target.value, provider: '' })}>
+              <option value="">Select department</option>
+              {departments.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Provider</label>
+            <select className="form-select" value={bookForm.provider} disabled={!bookForm.department}
+              onChange={(e) => setBookForm({ ...bookForm, provider: e.target.value })}>
+              <option value="">{bookForm.department ? 'Select provider (optional)' : 'Select department first'}</option>
+              {(allDoctors[bookForm.department] || []).map(d => <option key={d} value={d}>{d}</option>)}
+              <option value="Any Available Provider">Any Available Provider</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Date *</label>
+            <input type="date" className="form-input" value={bookForm.date}
+              min={new Date().toISOString().split('T')[0]}
+              onChange={(e) => { setBookForm({ ...bookForm, date: e.target.value }); loadSlotAvailability(e.target.value); }} required />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Time *</label>
+            <select className="form-select" value={bookForm.time} required
+              onChange={(e) => setBookForm({ ...bookForm, time: e.target.value })}>
+              <option value="">Select time slot</option>
+              {timeSlots.map(([val, label]) => (
+  <option key={val} value={val} disabled={slotAvailability[val] === 0}>
+    {label} {bookForm.date && `(${slotAvailability[val] !== undefined ? slotAvailability[val] : 5} slots left)`}
+  </option>
+))}
+            </select>
+          </div>
+          <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+            <label className="form-label">Reason for Visit *</label>
+            <select className="form-select" value={bookForm.reasonForVisit} required
+              onChange={(e) => setBookForm({ ...bookForm, reasonForVisit: e.target.value })}>
+              <option value="">Select reason</option>
+              {['URGENT CARE', 'General Checkup', 'Follow-up', 'Vaccination', 'Other'].map(r => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+            <label className="form-label">Symptoms / Notes</label>
+            <textarea className="form-textarea" rows="3" placeholder="Additional notes..."
+              value={bookForm.symptoms}
+              onChange={(e) => setBookForm({ ...bookForm, symptoms: e.target.value })} />
+          </div>
+        </div>
+        <div style={{ padding: '0.75rem 1rem', background: '#eff6ff', borderRadius: '8px', fontSize: '0.875rem', color: '#1d4ed8', marginBottom: '1rem' }}>
+          ℹ️ Appointments booked by admin are automatically set to <strong>Confirmed</strong>.
+        </div>
+        <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={isBooking}>
+          {isBooking ? ' Booking...' : ' Book Appointment'}
+        </button>
+      </form>
+    </div>
+  )}
+
+  {!showBookForm && !bookSuccess && (
+    <div style={{ padding: '1.5rem', textAlign: 'center', color: '#64748b' }}>
+      Use this to book an appointment on behalf of a patient (walk-in, phone booking, etc.)
+    </div>
+  )}
+</div>
       {/* QR Scanner Section */}
         <div className="admin-card" style={{ marginBottom: '2rem' }}>
           <div className="admin-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -244,7 +474,7 @@ function AdminAppointments() {
 
           {scanResult && (
             <div style={{ padding: '1.5rem' }}>
-              <h3 style={{ marginBottom: '1rem', color: '#10b981' }}>✅ Patient Scanned!</h3>
+              <h3 style={{ marginBottom: '1rem', color: '#10b981' }}> Patient Scanned!</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
                 <div><strong>Patient:</strong> {scanResult.patientName}</div>
                 <div><strong>Token:</strong> #{scanResult.token}</div>
@@ -254,26 +484,27 @@ function AdminAppointments() {
                 <div><strong>Doctor:</strong> {scanResult.provider}</div>
               </div>
 
-              {scanResult.status === 'completed' ? (
-                <div style={{
-                  padding: '1rem',
-                  background: '#d1fae5',
-                  borderRadius: '8px',
-                  color: '#065f46',
-                  fontWeight: '600',
-                  textAlign: 'center'
-                }}>
-                  ✅ Already marked as Completed!
-                </div>
-              ) : (
-                <button
-                  onClick={() => markAsCompleted(scanResult.appointmentId)}
-                  className="btn btn-primary"
-                  style={{ width: '100%', background: '#059669', border: 'none' }}
-                >
-                  ✅ Mark as Completed
-                </button>
-              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+  {scanResult.status !== 'completed' ? (
+    <button onClick={() => markAsCompleted(scanResult.appointmentId)} className="btn btn-primary" style={{ width: '100%', background: '#059669', border: 'none' }}>
+       Mark as Completed
+    </button>
+  ) : (
+    <div style={{ padding: '1rem', background: '#d1fae5', borderRadius: '8px', color: '#065f46', fontWeight: '600', textAlign: 'center' }}>
+       Completed!
+    </div>
+  )}
+  {scanResult.status === 'completed' && !scanResult.paid && (
+    <button onClick={() => markAsPaid(scanResult.appointmentId)} className="btn btn-primary" style={{ width: '100%', background: '#0ea5e9', border: 'none' }}>
+       Mark as Paid
+    </button>
+  )}
+  {scanResult.paid && (
+    <div style={{ padding: '1rem', background: '#e0f2fe', borderRadius: '8px', color: '#0369a1', fontWeight: '600', textAlign: 'center' }}>
+       Payment Received!
+    </div>
+  )}
+</div>
             </div>
           )}
 

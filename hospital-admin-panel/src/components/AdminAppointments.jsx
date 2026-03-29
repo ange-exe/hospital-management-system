@@ -30,6 +30,10 @@ const [bookForm, setBookForm] = useState({
 const [isBooking, setIsBooking] = useState(false);
 const [bookSuccess, setBookSuccess] = useState(false);
 const [slotAvailability, setSlotAvailability] = useState({});
+const [showBillForm, setShowBillForm] = useState(false);
+const [billItems, setBillItems] = useState([{ name: '', qty: 1, amount: '' }]);
+const [pendingCompleteId, setPendingCompleteId] = useState(null);
+const [pendingCompleteData, setPendingCompleteData] = useState(null);
 const departments = [
   'General Medicine', 'Pediatrics', 'Cardiology', 'Dermatology',
   'Orthopedics', 'Mental Health', 'Gynecology', 'Dental'
@@ -131,31 +135,41 @@ const timeSlots = [
     };
   }, [scanning]);
 
-  const markAsCompleted = async (appointmentId) => {
+  const markAsCompleted = async () => {
+  if (!pendingCompleteId || !pendingCompleteData) return;
+  const validItems = billItems.filter(i => i.name && i.amount);
+  if (validItems.length === 0) {
+    alert('Please add at least one bill item.');
+    return;
+  }
   try {
-    const appointmentRef = doc(db, 'appointments', appointmentId);
-    const appointmentSnap = await getDoc(appointmentRef);
-    const apptData = appointmentSnap.data();
-
+    const appointmentRef = doc(db, 'appointments', pendingCompleteId);
     await updateDoc(appointmentRef, { status: 'completed', completedAt: Timestamp.now() });
 
     await addDoc(collection(db, 'receipts'), {
-      appointmentId,
-      patientId: apptData.patientId,
-      patientName: apptData.patientName,
-      department: apptData.department,
-      provider: apptData.provider,
-      date: apptData.date,
-      time: apptData.time,
-      reasonForVisit: apptData.reasonForVisit || apptData.appointmentType || 'General Visit',
-      tokenNumber: apptData.tokenNumber,
-      generatedAt: Timestamp.now(),
-      paid: false
+      appointmentId: pendingCompleteId,
+      patientId: pendingCompleteData.patientId,
+      patientName: pendingCompleteData.patientName,
+      department: pendingCompleteData.department,
+      provider: pendingCompleteData.provider,
+      visitDate: pendingCompleteData.date,
+      receiptNumber: 'RCP-' + pendingCompleteData.date?.replace(/-/g, '') + '-' + Date.now().toString().slice(-3),
+      reasonForVisit: pendingCompleteData.reasonForVisit || 'General Visit',
+      tokenNumber: pendingCompleteData.token || pendingCompleteData.tokenNumber || '',
+      items: validItems.map(i => ({ name: i.name, qty: Number(i.qty), amount: Number(i.amount) })),
+      paymentStatus: 'unpaid',
+      paid: false,
+      createdAt: Timestamp.now()
     });
 
     setScanResult(prev => ({ ...prev, status: 'completed' }));
+    setShowBillForm(false);
+    setBillItems([{ name: '', qty: 1, amount: '' }]);
+    setPendingCompleteId(null);
+    setPendingCompleteData(null);
     loadAppointments();
   } catch (error) {
+    console.error(error);
     setScanError('Failed to update. Try again.');
   }
 };
@@ -166,9 +180,17 @@ const markAsPaid = async (appointmentId) => {
     const q = query(receiptsRef, where('appointmentId', '==', appointmentId));
     const snapshot = await getDocs(q);
     if (!snapshot.empty) {
-      await updateDoc(doc(db, 'receipts', snapshot.docs[0].id), { paid: true, paidAt: Timestamp.now() });
+      await updateDoc(doc(db, 'receipts', snapshot.docs[0].id), {
+        paid: true,
+        paymentStatus: 'paid',
+        paidAt: Timestamp.now()
+      });
     }
+    await updateDoc(doc(db, 'appointments', appointmentId), {
+      paymentStatus: 'paid'
+    });
     setScanResult(prev => ({ ...prev, paid: true }));
+    loadAppointments(); 
   } catch (error) {
     setScanError('Failed to mark as paid. Try again.');
   }
@@ -237,17 +259,21 @@ const loadSlotAvailability = async (date) => {
   setSlotAvailability(availability);
 };
 
-const handlePatientIdChange = async (patientId) => {
-  setBookForm({ ...bookForm, patientId });
-  if (!patientId) return;
-  // Search appointments to find patient name
-  const snapshot = await getDocs(query(
-    collection(db, 'appointments'),
-    where('patientId', '==', patientId)
-  ));
-  if (!snapshot.empty) {
-    const name = snapshot.docs[0].data().patientName;
-    setBookForm(prev => ({ ...prev, patientId, patientName: name }));
+const handlePatientIdChange = async (e) => {
+  const patientId = e.target.value;
+  setBookForm(prev => ({ ...prev, patientId }));
+  if (!patientId || patientId.length < 5) return;
+  try {
+    const snapshot = await getDocs(query(
+      collection(db, 'appointments'),
+      where('patientId', '==', patientId)
+    ));
+    if (!snapshot.empty) {
+      const name = snapshot.docs[0].data().patientName;
+      setBookForm(prev => ({ ...prev, patientId, patientName: name }));
+    }
+  } catch (error) {
+    console.error('Autofill error:', error);
   }
 };
 
@@ -375,7 +401,7 @@ const handlePatientIdChange = async (patientId) => {
   <label className="form-label">Patient ID *</label>
   <input type="text" className="form-input" placeholder="e.g., STU-2024-1847"
     value={bookForm.patientId}
-    onChange={(e) => handlePatientIdChange(e.target.value)} required />
+    onChange={handlePatientIdChange} required />
 </div>
           <div className="form-group">
             <label className="form-label">Department *</label>
@@ -485,23 +511,109 @@ const handlePatientIdChange = async (patientId) => {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-  {scanResult.status !== 'completed' ? (
-    <button onClick={() => markAsCompleted(scanResult.appointmentId)} className="btn btn-primary" style={{ width: '100%', background: '#059669', border: 'none' }}>
-       Mark as Completed
+  {scanResult.status !== 'completed' && !showBillForm && (
+    <button
+      onClick={() => {
+        setPendingCompleteId(scanResult.appointmentId);
+        setPendingCompleteData(scanResult);
+        setShowBillForm(true);
+      }}
+      className="btn btn-primary"
+      style={{ width: '100%', background: '#059669', border: 'none' }}
+    >
+      ✓ Mark as Completed + Create Bill
     </button>
-  ) : (
-    <div style={{ padding: '1rem', background: '#d1fae5', borderRadius: '8px', color: '#065f46', fontWeight: '600', textAlign: 'center' }}>
-       Completed!
+  )}
+
+  {showBillForm && (
+    <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '1.25rem', border: '1px solid #e2e8f0' }}>
+      <h4 style={{ marginBottom: '1rem', color: '#1e293b' }}>🧾 Bill Items</h4>
+
+      {billItems.map((item, index) => (
+        <div key={index} style={{ display: 'grid', gridTemplateColumns: '2fr 0.5fr 1fr auto', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
+          <input
+            type="text"
+            placeholder="Item name"
+            className="form-input"
+            value={item.name}
+            onChange={(e) => {
+              const updated = [...billItems];
+              updated[index].name = e.target.value;
+              setBillItems(updated);
+            }}
+          />
+          <input
+            type="number"
+            placeholder="Qty"
+            className="form-input"
+            min="1"
+            value={item.qty}
+            onChange={(e) => {
+              const updated = [...billItems];
+              updated[index].qty = e.target.value;
+              setBillItems(updated);
+            }}
+          />
+          <input
+            type="number"
+            placeholder="₹ Amount"
+            className="form-input"
+            value={item.amount}
+            onChange={(e) => {
+              const updated = [...billItems];
+              updated[index].amount = e.target.value;
+              setBillItems(updated);
+            }}
+          />
+          <button
+            onClick={() => setBillItems(billItems.filter((_, i) => i !== index))}
+            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1.1rem' }}
+          >✕</button>
+        </div>
+      ))}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem' }}>
+        <button
+          onClick={() => setBillItems([...billItems, { name: '', qty: 1, amount: '' }])}
+          className="btn btn-secondary"
+          style={{ fontSize: '0.85rem' }}
+        >
+          + Add Item
+        </button>
+        <strong style={{ color: '#1e293b' }}>
+          Total: ₹{billItems.reduce((sum, i) => sum + (Number(i.amount) * Number(i.qty) || 0), 0).toLocaleString()}
+        </strong>
+      </div>
+
+      <button
+        onClick={markAsCompleted}
+        className="btn btn-primary"
+        style={{ width: '100%', marginTop: '1rem', background: '#059669', border: 'none' }}
+      >
+        ✓ Confirm & Save Bill
+      </button>
     </div>
   )}
+
+  {scanResult.status === 'completed' && (
+    <div style={{ padding: '1rem', background: '#d1fae5', borderRadius: '8px', color: '#065f46', fontWeight: '600', textAlign: 'center' }}>
+      ✓ Completed!
+    </div>
+  )}
+
   {scanResult.status === 'completed' && !scanResult.paid && (
-    <button onClick={() => markAsPaid(scanResult.appointmentId)} className="btn btn-primary" style={{ width: '100%', background: '#0ea5e9', border: 'none' }}>
-       Mark as Paid
+    <button
+      onClick={() => markAsPaid(scanResult.appointmentId)}
+      className="btn btn-primary"
+      style={{ width: '100%', background: '#0ea5e9', border: 'none' }}
+    >
+      💳 Mark as Paid
     </button>
   )}
+
   {scanResult.paid && (
     <div style={{ padding: '1rem', background: '#e0f2fe', borderRadius: '8px', color: '#0369a1', fontWeight: '600', textAlign: 'center' }}>
-       Payment Received!
+      ✅ Payment Received!
     </div>
   )}
 </div>
@@ -650,12 +762,18 @@ const handlePatientIdChange = async (patientId) => {
                       <td>{appointment.time}</td>
                       <td>
                         <span className={`badge badge-${
-                          appointment.status === 'confirmed' ? 'success' : 
-                          appointment.status === 'cancelled' ? 'cancelled' : 
-                          'pending'
-                        }`}>
-                          {appointment.status || 'pending'}
-                        </span>
+  appointment.status === 'confirmed' ? 'success' :
+  appointment.status === 'completed' ? 'success' :
+  appointment.status === 'cancelled' ? 'cancelled' :
+  'pending'
+}`}>
+  {appointment.status || 'pending'}
+</span>
+{appointment.paymentStatus === 'paid' && (
+  <span className="badge badge-success" style={{ marginLeft: '0.4rem' }}>
+    Paid
+  </span>
+)}
                       </td>
                       <td>
                         <div className="table-actions">

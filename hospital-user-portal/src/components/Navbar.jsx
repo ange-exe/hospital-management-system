@@ -45,6 +45,15 @@ function Navbar({ currentPage, setCurrentPage }) {
               Health Articles
             </a>
           </li>
+          <li>
+  <a
+    href="#"
+    className={currentPage === 'receipts' ? 'active' : ''}
+    onClick={() => setCurrentPage('receipts')}
+  >
+    Receipts
+  </a>
+</li>
         </ul>
       </div>
     </nav>

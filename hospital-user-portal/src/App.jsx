@@ -5,6 +5,7 @@ import Home from './components/Home';
 import MedicalRecords from './components/MedicalRecords';
 import Appointments from './components/Appointments';
 import HealthArticles from './components/HealthArticles';
+import Receipts from './components/Receipts';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
@@ -19,6 +20,8 @@ function App() {
         return <Appointments />;
       case 'articles':
         return <HealthArticles />;
+      case 'receipts':
+        return <Receipts />;
       default:
         return <Home setCurrentPage={setCurrentPage} />;
     }

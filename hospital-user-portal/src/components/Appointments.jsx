@@ -56,15 +56,26 @@ function Appointments() {
 
   const availableProviders = getAvailableProviders();
 
-  useEffect(() => {
+ useEffect(() => {
     const appointmentsRef = collection(db, 'appointments');
-    const q = query(appointmentsRef, orderBy('createdAt', 'desc'));
+    const q = query(
+  appointmentsRef,
+  where('patientId', '==', 'STU-2024-1847'),
+  where('status', 'in', ['pending', 'confirmed']),
+  orderBy('date', 'asc')
+);
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const appointments = [];
       querySnapshot.forEach((document) => {
         appointments.push({ id: document.id, ...document.data() });
       });
-      setUpcomingAppointments(appointments);
+
+      // Filter only pending and confirmed, sort by date ascending
+      const filtered = appointments
+        .filter(a => a.status !== 'completed' && a.status !== 'cancelled')
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      setUpcomingAppointments(filtered);
     }, (error) => {
       console.error('❌ Error listening to appointments:', error);
     });
@@ -148,7 +159,7 @@ function Appointments() {
       setSlotAvailability({});
       setTimeout(() => setShowSuccess(false), 5000);
     } catch (error) {
-      console.error('❌ Error saving appointment:', error);
+      console.error(' Error saving appointment:', error);
       alert('Error submitting appointment. Please check console.');
     } finally {
       setIsSubmitting(false);
@@ -175,9 +186,9 @@ function Appointments() {
     try {
       const appointmentRef = doc(db, 'appointments', appointmentId);
       await updateDoc(appointmentRef, { status: 'cancelled' });
-      console.log('✅ Appointment cancelled!');
+      console.log(' Appointment cancelled!');
     } catch (error) {
-      console.error('❌ Error cancelling:', error);
+      console.error(' Error cancelling:', error);
       alert('Error cancelling appointment. Please try again.');
     }
   };
@@ -192,6 +203,26 @@ function Appointments() {
         <h1>Appointments</h1>
         <p>Schedule new appointments and manage your upcoming visits</p>
       </div>
+{upcomingAppointments.length > 0 && (
+  <div style={{
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    borderRadius: '12px',
+    padding: '1rem 1.5rem',
+    marginBottom: '1.5rem',
+    color: 'white',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem'
+  }}>
+    <span style={{ fontSize: '1.5rem' }}>📅</span>
+    <div>
+      <p style={{ fontWeight: '700', margin: 0 }}>Next Appointment</p>
+      <p style={{ margin: 0, opacity: 0.9, fontSize: '0.9rem' }}>
+        {upcomingAppointments[0].date} at {upcomingAppointments[0].time} — {upcomingAppointments[0].department} with {upcomingAppointments[0].provider}
+      </p>
+    </div>
+  </div>
+)}
 
       {/* AI Assistant Banner */}
       <div style={{
@@ -239,112 +270,6 @@ function Appointments() {
           <span>Appointment saved to database!</span>
         </div>
       )}
-
-      {/* Upcoming Appointments */}
-      <div className="card">
-        <div className="card-header">
-          <h2>Upcoming Appointments</h2>
-          <span className="badge badge-info">{upcomingAppointments.length} Scheduled</span>
-        </div>
-        {upcomingAppointments.length === 0 ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-light)' }}>
-            No appointments scheduled yet. Book one below!
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {upcomingAppointments.map((appointment, index) => (
-              <div
-                key={appointment.id || index}
-                style={{
-                  padding: '1.5rem',
-                  background: 'var(--color-background)',
-                  borderRadius: '12px',
-                  border: '1px solid var(--color-border)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'flex-start'
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                    <div style={{
-                      padding: '0.5rem 1rem',
-                      background: 'var(--color-primary)',
-                      color: 'white',
-                      borderRadius: '8px',
-                      fontWeight: '600',
-                      fontSize: '0.9rem'
-                    }}>
-                      {appointment.date}
-                    </div>
-                    <div style={{
-                      padding: '0.5rem 1rem',
-                      background: 'var(--color-accent)',
-                      color: 'var(--color-primary-dark)',
-                      borderRadius: '8px',
-                      fontWeight: '600',
-                      fontSize: '0.9rem'
-                    }}>
-                      {appointment.time}
-                    </div>
-                  </div>
-                    {appointment.appointmentType || appointment.type}
-                  <h4 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: 'var(--color-primary)' }}>
-  {appointment.reasonForVisit === 'Other' ? appointment.customReason : (appointment.reasonForVisit || appointment.appointmentType || 'N/A')}
-</h4>
-                  <p style={{ color: 'var(--color-text-light)', marginBottom: '0.25rem' }}>
-                    <strong>Provider:</strong> {appointment.provider}
-                  </p>
-                  <p style={{ color: 'var(--color-text-light)', marginBottom: '0.25rem' }}>
-                    <strong>Department:</strong> {appointment.department}
-                  </p>
-                  <p style={{ color: 'var(--color-text-light)', marginBottom: '0.5rem' }}>
-                    <strong>Reason:</strong> {appointment.reason || 'N/A'}
-                  </p>
-                  <p>
-                    <strong>Status: </strong>
-                    <span className={`badge badge-${
-                      appointment.status === 'confirmed' ? 'success' :
-                      appointment.status === 'completed' ? 'success' :
-                      appointment.status === 'cancelled' ? 'cancelled' :
-                      'pending'
-                    }`}>
-                      {appointment.status === 'completed' ? '✅ Completed' :
-                       appointment.status === 'confirmed' ? '✓ Confirmed' :
-                       appointment.status === 'cancelled' ? '✕ Cancelled' :
-                       '⏳ Pending'}
-                    </span>
-                  </p>
-                </div>
-
-                {/* Only show buttons if not completed or cancelled */}
-                {appointment.status !== 'completed' && appointment.status !== 'cancelled' && (
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button className="btn btn-secondary" style={{
-                      padding: '0.5rem 1rem', fontSize: '0.9rem',
-                      background: 'var(--color-background)',
-                      color: 'var(--color-primary)',
-                      border: '2px solid var(--color-primary)'
-                    }}>
-                      Reschedule
-                    </button>
-                    <button className="btn btn-secondary" style={{
-                      padding: '0.5rem 1rem', fontSize: '0.9rem',
-                      background: 'var(--color-background)',
-                      color: '#C44536',
-                      border: '2px solid #C44536'
-                    }}
-                      onClick={() => handleCancel(appointment.id)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
       {/* Schedule New Appointment */}
       <div className="card">
@@ -415,7 +340,7 @@ function Appointments() {
     <option value="">Select reason for visit</option>
     {reasonOptions.map((reason, index) => (
       <option key={index} value={reason}>
-        {reason === 'URGENT CARE' ? '🚨 ' + reason : reason}
+        {reason === 'URGENT CARE' ? '⚠️' + reason : reason}
       </option>
     ))}
   </select>
@@ -449,9 +374,115 @@ function Appointments() {
           </div>
 
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }} disabled={isSubmitting}>
-            {isSubmitting ? '⏳ Saving to Database...' : '✓ Submit Appointment Request'}
+            {isSubmitting ? ' Saving to Database...' : '✓ Submit Appointment Request'}
           </button>
         </form>
+      </div>
+
+    {/* Upcoming Appointments */}
+      <div className="card">
+        <div className="card-header">
+          <h2>Upcoming Appointments</h2>
+          <span className="badge badge-info">{upcomingAppointments.length} Active</span>
+        </div>
+        {upcomingAppointments.length === 0 ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-light)' }}>
+            No appointments scheduled yet. Book one below!
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {upcomingAppointments.map((appointment, index) => (
+              <div
+                key={appointment.id || index}
+                style={{
+                  padding: '1.5rem',
+                  background: 'var(--color-background)',
+                  borderRadius: '12px',
+                  border: '1px solid var(--color-border)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start'
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                    <div style={{
+                      padding: '0.5rem 1rem',
+                      background: 'var(--color-primary)',
+                      color: 'white',
+                      borderRadius: '8px',
+                      fontWeight: '600',
+                      fontSize: '0.9rem'
+                    }}>
+                      {appointment.date}
+                    </div>
+                    <div style={{
+                      padding: '0.5rem 1rem',
+                      background: 'var(--color-accent)',
+                      color: 'var(--color-primary-dark)',
+                      borderRadius: '8px',
+                      fontWeight: '600',
+                      fontSize: '0.9rem'
+                    }}>
+                      {appointment.time}
+                    </div>
+                  </div>
+                    {appointment.appointmentType || appointment.type}
+                  <h4 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: 'var(--color-primary)' }}>
+  {appointment.reasonForVisit === 'Other' ? appointment.customReason : (appointment.reasonForVisit || appointment.appointmentType || 'N/A')}
+</h4>
+                  <p style={{ color: 'var(--color-text-light)', marginBottom: '0.25rem' }}>
+                    <strong>Provider:</strong> {appointment.provider}
+                  </p>
+                  <p style={{ color: 'var(--color-text-light)', marginBottom: '0.25rem' }}>
+                    <strong>Department:</strong> {appointment.department}
+                  </p>
+                  <p style={{ color: 'var(--color-text-light)', marginBottom: '0.5rem' }}>
+                    <strong>Reason:</strong> {appointment.reason || 'N/A'}
+                  </p>
+                  <p>
+                    <strong>Status: </strong>
+                    <span className={`badge badge-${
+                      appointment.status === 'confirmed' ? 'success' :
+                      appointment.status === 'completed' ? 'success' :
+                      appointment.status === 'cancelled' ? 'cancelled' :
+                      'pending'
+                    }`}>
+                      {appointment.status === 'completed' ? '✓ Completed' :
+                       appointment.status === 'confirmed' ? '✓ Confirmed' :
+                       appointment.status === 'cancelled' ? '✕ Cancelled' :
+                       ' Pending'}
+                    </span>
+                  </p>
+                </div>
+
+                {/* Only show buttons if not completed or cancelled */}
+                {appointment.status !== 'completed' && appointment.status !== 'cancelled' && (
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className="btn btn-secondary" style={{
+                      padding: '0.5rem 1rem', fontSize: '0.9rem',
+                      background: 'var(--color-background)',
+                      color: 'var(--color-primary)',
+                      border: '2px solid var(--color-primary)'
+                    }}>
+                      Reschedule
+                    </button>
+                    <button className="btn btn-secondary" style={{
+                      padding: '0.5rem 1rem', fontSize: '0.9rem',
+                      background: 'var(--color-background)',
+                      color: '#C44536',
+                      border: '2px solid #C44536'
+                    }}
+                      onClick={() => handleCancel(appointment.id)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Important Information */}
@@ -491,7 +522,7 @@ function Appointments() {
             textAlign: 'center',
             boxShadow: '0 10px 40px rgba(0,0,0,0.3)'
           }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✅</div>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}></div>
             <h2 style={{ marginBottom: '0.5rem', color: 'var(--color-primary)' }}>Appointment Confirmed!</h2>
             <p style={{ color: 'var(--color-text-light)', marginBottom: '2rem' }}>Token #{currentAppointment.tokenNumber}</p>
 

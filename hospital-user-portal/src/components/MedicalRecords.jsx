@@ -91,6 +91,26 @@ function MedicalRecords() {
         <h1>Medical Records</h1>
         <p>Complete overview of your health history and current medications</p>
       </div>
+{appointments.filter(a => a.status !== 'completed' && a.status !== 'cancelled').length > 0 && (
+  <div style={{
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    borderRadius: '12px',
+    padding: '1rem 1.5rem',
+    marginBottom: '1.5rem',
+    color: 'white',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem'
+  }}>
+    <span style={{ fontSize: '1.5rem' }}>📅</span>
+    <div>
+      <p style={{ fontWeight: '700', margin: 0 }}>Next Appointment</p>
+      <p style={{ margin: 0, opacity: 0.9, fontSize: '0.9rem' }}>
+        {appointments.filter(a => a.status !== 'completed' && a.status !== 'cancelled').sort((a,b) => new Date(a.date) - new Date(b.date))[0].date} at {appointments.filter(a => a.status !== 'completed' && a.status !== 'cancelled').sort((a,b) => new Date(a.date) - new Date(b.date))[0].time} — {appointments.filter(a => a.status !== 'completed' && a.status !== 'cancelled').sort((a,b) => new Date(a.date) - new Date(b.date))[0].department}
+      </p>
+    </div>
+  </div>
+)}
 
       {/* Personal Information */}
       <div className="card">
@@ -207,10 +227,15 @@ function MedicalRecords() {
                     <p><strong>Notes:</strong> {visit.notes}</p>
                   )}
                  <p><strong>Status:</strong> <span className={`badge badge-${
-                    visit.status === 'confirmed' ? 'success' : 
-                    visit.status === 'cancelled' ? 'cancelled' : 
-                    'pending'
-                  }`}>{visit.status || 'pending'}</span></p>
+  visit.status === 'confirmed' ? 'success' :
+  visit.status === 'completed' ? 'success' :
+  visit.status === 'cancelled' ? 'cancelled' :
+  'pending'
+}`}>{visit.status || 'pending'}</span></p>
+
+{visit.paymentStatus === 'paid' && (
+  <p><strong>Payment:</strong> <span className="badge badge-success">Paid</span></p>
+)}
 
                   {/* QR Code - shows until appointment is completed */}
                   {visit.status !== 'completed' && visit.status !== 'cancelled' && (

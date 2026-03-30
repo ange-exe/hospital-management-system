@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import { collection, addDoc, getDocs, onSnapshot, query, orderBy, where, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { QRCodeSVG } from 'qrcode.react';
+import Vapi from '@vapi-ai/web';
+
+const VAPI_PUBLIC_KEY = '47dccc26-6d49-426c-868b-1d3f6aaef112';
+const VAPI_ASSISTANT_ID = 'c47ef318-bad9-4594-8351-c1761a481738';
 
 function Appointments() {
   const [formData, setFormData] = useState({
@@ -23,6 +27,13 @@ function Appointments() {
   const SLOTS_PER_TIME = 5;
   const [showQRModal, setShowQRModal] = useState(false);
   const [currentAppointment, setCurrentAppointment] = useState(null);
+  const vapiRef = useRef(null);
+  const [vapiStatus, setVapiStatus] = useState('idle'); // idle | loading | active | error
+  const [callDuration, setCallDuration] = useState(0);
+  const [transcript, setTranscript] = useState([]);
+const [showTranscript, setShowTranscript] = useState(false);
+const transcriptEndRef = useRef(null);
+  const timerRef = useRef(null);
 
   const reasonOptions = [
   'URGENT CARE',
@@ -56,6 +67,46 @@ function Appointments() {
 
   const availableProviders = getAvailableProviders();
 
+useEffect(() => {
+  const vapi = new Vapi(VAPI_PUBLIC_KEY);
+  vapiRef.current = vapi;
+
+  vapi.on('call-start', () => {
+  setVapiStatus('active');
+  setTranscript([]); // clears old transcript on new call
+    timerRef.current = setInterval(() => {
+      setCallDuration(prev => prev + 1);
+    }, 1000);
+  });
+
+  vapi.on('call-end', () => {
+    setVapiStatus('idle');
+    clearInterval(timerRef.current);
+    setCallDuration(0);
+  });
+
+  vapi.on('message', (msg) => {
+  if (msg.type === 'transcript' && msg.transcriptType === 'final') {
+    setTranscript(prev => [...prev, {
+      role: msg.role,
+      text: msg.transcript,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }]);
+  }
+});
+  vapi.on('error', (err) => {
+    console.error('VAPI error FULL:', JSON.stringify(err));
+    setVapiStatus('error');
+    clearInterval(timerRef.current);
+    setTimeout(() => setVapiStatus('idle'), 3000);
+  });
+
+  return () => {
+    clearInterval(timerRef.current);
+    vapi.stop();
+  };
+}, []);
+
  useEffect(() => {
     const appointmentsRef = collection(db, 'appointments');
     const q = query(
@@ -81,6 +132,10 @@ function Appointments() {
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+  transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+}, [transcript]);
 
   const checkSlotAvailability = async (date, time) => {
     try {
@@ -193,9 +248,20 @@ function Appointments() {
     }
   };
 
-  const handleCallAgent = () => {
-    alert('📞 AI Calling Agent feature coming soon! This will allow you to speak with an AI assistant to book appointments hands-free.');
-  };
+  const handleCallAgent = async () => {
+  if (vapiStatus === 'active') {
+    vapiRef.current.stop();
+    return;
+  }
+  setVapiStatus('loading');
+  try {
+    await vapiRef.current.start(VAPI_ASSISTANT_ID);
+  } catch (err) {
+    console.error('Failed to start call:', err);
+    setVapiStatus('error');
+    setTimeout(() => setVapiStatus('idle'), 3000);
+  }
+};
 
   return (
     <div className="slide-up">
@@ -245,23 +311,28 @@ function Appointments() {
           </p>
         </div>
         <button
-          onClick={handleCallAgent}
-          style={{
-            background: 'white',
-            color: '#6366F1',
-            border: 'none',
-            padding: '1rem 2rem',
-            borderRadius: '12px',
-            fontSize: '1rem',
-            fontWeight: '700',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            fontFamily: 'var(--font-body)',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
-          }}
-        >
-          📞 Call AI Agent
-        </button>
+  onClick={handleCallAgent}
+  style={{
+    background: vapiStatus === 'active' ? '#ef4444' : 'white',
+    color: vapiStatus === 'active' ? 'white' : '#6366F1',
+    border: 'none',
+    padding: '1rem 2rem',
+    borderRadius: '12px',
+    fontSize: '1rem',
+    fontWeight: '700',
+    cursor: vapiStatus === 'loading' ? 'not-allowed' : 'pointer',
+    whiteSpace: 'nowrap',
+    fontFamily: 'var(--font-body)',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+    transition: 'all 0.2s'
+  }}
+  disabled={vapiStatus === 'loading'}
+>
+  {vapiStatus === 'loading' && '⏳ Connecting...'}
+  {vapiStatus === 'active' && '🔴 End Call'}
+  {vapiStatus === 'idle' && '📞 Call AI Agent'}
+  {vapiStatus === 'error' && '❌ Try Again'}
+</button>
       </div>
 
       {showSuccess && (
@@ -568,7 +639,135 @@ function Appointments() {
           </div>
         </div>
       )}
+{/* Floating Transcript Bubble */}
+{(
+  <div style={{ position: 'fixed', bottom: '2rem', right: '2rem', zIndex: 999 }}>
 
+    {/* Expanded chatbox */}
+    {showTranscript && (
+      <div style={{
+        width: '320px',
+        height: '420px',
+        background: 'white',
+        borderRadius: '16px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+        display: 'flex',
+        flexDirection: 'column',
+        marginBottom: '1rem',
+        overflow: 'hidden',
+        border: '1px solid #e5e7eb'
+      }}>
+        {/* Header */}
+        <div style={{
+          background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
+          padding: '1rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {vapiStatus === 'active' && (
+              <span style={{
+                width: '8px', height: '8px',
+                background: '#4ade80',
+                borderRadius: '50%',
+                display: 'inline-block',
+                animation: 'pulse 1.5s infinite'
+              }} />
+            )}
+            <span style={{ color: 'white', fontWeight: '700', fontSize: '0.95rem' }}>
+              {vapiStatus === 'active' ? 'Live — Aark is speaking' : 'Call Transcript'}
+            </span>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div style={{
+          flex: 1, overflowY: 'auto',
+          padding: '1rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.75rem',
+          background: '#f9fafb'
+        }}>
+          {transcript.length === 0 ? (
+            <div style={{
+              textAlign: 'center', color: '#9ca3af',
+              fontSize: '0.85rem', marginTop: '2rem'
+            }}>
+              {vapiStatus === 'active'
+                ? '🎙️ Listening... Start speaking!'
+                : 'No transcript yet'}
+            </div>
+          ) : (
+            transcript.map((msg, i) => (
+              <div key={i} style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start'
+              }}>
+                <div style={{
+                  maxWidth: '80%',
+                  padding: '0.6rem 0.9rem',
+                  borderRadius: msg.role === 'user'
+                    ? '12px 12px 2px 12px'
+                    : '12px 12px 12px 2px',
+                  background: msg.role === 'user' ? '#6366F1' : 'white',
+                  color: msg.role === 'user' ? 'white' : '#1f2937',
+                  fontSize: '0.85rem',
+                  lineHeight: '1.4',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+                }}>
+                  {msg.text}
+                </div>
+                <span style={{
+                  fontSize: '0.7rem', color: '#9ca3af', marginTop: '0.2rem'
+                }}>
+                  {msg.role === 'user' ? 'You' : 'Aark'} • {msg.time}
+                </span>
+              </div>
+            ))
+          )}
+          <div ref={transcriptEndRef} />
+        </div>
+      </div>
+    )}
+
+    {/* Bubble button */}
+    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <button
+        onClick={() => setShowTranscript(prev => !prev)}
+        style={{
+          width: '56px', height: '56px',
+          borderRadius: '50%',
+          background: vapiStatus === 'active'
+            ? 'linear-gradient(135deg, #6366F1, #8B5CF6)'
+            : '#6366F1',
+          border: 'none',
+          cursor: 'pointer',
+          boxShadow: '0 4px 16px rgba(99,102,241,0.4)',
+          fontSize: '1.4rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative'
+        }}
+      >
+        💬
+        {/* Green dot when call is active */}
+        {vapiStatus === 'active' && (
+          <span style={{
+            position: 'absolute', top: '2px', right: '2px',
+            width: '12px', height: '12px',
+            background: '#4ade80',
+            borderRadius: '50%',
+            border: '2px solid white'
+          }} />
+        )}
+      </button>
+    </div>
+  </div>
+)}
     </div>
   );
 }

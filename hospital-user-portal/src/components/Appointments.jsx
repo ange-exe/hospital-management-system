@@ -3,6 +3,7 @@ import { db } from '../firebase';
 import { collection, addDoc, getDocs, onSnapshot, query, orderBy, where, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { QRCodeSVG } from 'qrcode.react';
 import Vapi from '@vapi-ai/web';
+import VideoCall from './VideoCall';
 
 const VAPI_PUBLIC_KEY = '47dccc26-6d49-426c-868b-1d3f6aaef112';
 const VAPI_ASSISTANT_ID = 'c47ef318-bad9-4594-8351-c1761a481738';
@@ -197,6 +198,24 @@ const saveTranscriptToFirebase = async (transcriptData) => {
   }
 };
 
+// ── Listen for incoming video calls ──────────────────────────────────
+const [activeCalls, setActiveCalls] = useState({});
+const [openCall, setOpenCall] = useState(null);
+
+useEffect(() => {
+  const unsub = onSnapshot(collection(db, 'calls'), (snap) => {
+    const live = {};
+    snap.docs.forEach((d) => {
+      const data = d.data();
+      if (data.status === 'calling' || data.status === 'active') {
+        live[d.id] = { ...data, callDocId: d.id };
+      }
+    });
+    setActiveCalls(live);
+  });
+  return () => unsub();
+}, []);
+
   useEffect(() => {
     const appointmentsRef = collection(db, 'appointments');
     const q = query(
@@ -371,7 +390,17 @@ useEffect(() => {
 
   return (
     <div className="slide-up">
-      <div className="page-header">
+
+  {/* ── VIDEO CALL OVERLAY ── */}
+  {openCall && (
+    <VideoCall
+      appointment={openCall.appointment}
+      currentUser={{ uid: 'STU-2024-1847', displayName: 'Raju Rastogi', email: 'raju@student.edu', role: 'patient' }}
+      onClose={() => setOpenCall(null)}
+    />
+  )}
+
+  <div className="page-header">
         <h1>Appointments</h1>
         <p>Schedule new appointments and manage your upcoming visits</p>
       </div>
@@ -731,27 +760,62 @@ useEffect(() => {
                 </div>
 
                 {appointment.status !== 'completed' && appointment.status !== 'cancelled' && (
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button className="btn btn-secondary" style={{
-                      padding: '0.5rem 1rem', fontSize: '0.9rem',
-                      background: 'var(--color-background)',
-                      color: 'var(--color-primary)',
-                      border: '2px solid var(--color-primary)'
-                    }}>
-                      Reschedule
-                    </button>
-                    <button className="btn btn-secondary" style={{
-                      padding: '0.5rem 1rem', fontSize: '0.9rem',
-                      background: 'var(--color-background)',
-                      color: '#C44536',
-                      border: '2px solid #C44536'
-                    }}
-                      onClick={() => handleCancel(appointment.id)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-end' }}>
+
+    {/* Join Call button — only shows when doctor is calling */}
+    {(() => {
+      const liveCall = Object.values(activeCalls).find(
+        c => c.appointmentId === appointment.id
+      ) || (Object.values(activeCalls).length > 0 ? Object.values(activeCalls)[0] : null);
+      return liveCall ? (
+        <button
+          onClick={() => setOpenCall({ appointment, callDocId: liveCall.callDocId })}
+          style={{
+            padding: '0.6rem 1.2rem',
+            background: '#059669',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            fontWeight: 700,
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <span style={{
+            width: 8, height: 8, borderRadius: '50%',
+            background: '#a7f3d0',
+            display: 'inline-block',
+            animation: 'dot-pulse 1.2s ease-in-out infinite',
+          }}/>
+          📹 Join Call
+        </button>
+      ) : null;
+    })()}
+
+    <button className="btn btn-secondary" style={{
+      padding: '0.5rem 1rem', fontSize: '0.9rem',
+      background: 'var(--color-background)',
+      color: 'var(--color-primary)',
+      border: '2px solid var(--color-primary)'
+    }}>
+      Reschedule
+    </button>
+    <button className="btn btn-secondary" style={{
+      padding: '0.5rem 1rem', fontSize: '0.9rem',
+      background: 'var(--color-background)',
+      color: '#C44536',
+      border: '2px solid #C44536'
+    }}
+      onClick={() => handleCancel(appointment.id)}
+    >
+      Cancel
+    </button>
+  </div>
+)}
               </div>
             ))}
           </div>
@@ -1024,6 +1088,12 @@ useEffect(() => {
           </div>
         </div>
       )}
+      <style>{`
+  @keyframes dot-pulse {
+    0%,100% { transform:scale(1); opacity:1; }
+    50%      { transform:scale(1.7); opacity:.4; }
+  }
+`}</style>
     </div>
   );
 }

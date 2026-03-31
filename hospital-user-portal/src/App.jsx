@@ -6,9 +6,12 @@ import MedicalRecords from './components/MedicalRecords';
 import Appointments from './components/Appointments';
 import HealthArticles from './components/HealthArticles';
 import Receipts from './components/Receipts';
+import Login from './components/Login';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+const [currentUser, setCurrentUser] = useState(null);
 
   const renderPage = () => {
     switch(currentPage) {
@@ -27,9 +30,17 @@ function App() {
     }
   };
 
+if (!isLoggedIn) {
+  return <Login onLogin={(user) => { setCurrentUser(user); setIsLoggedIn(true); }} />;
+}
+
   return (
     <div className="app">
-      <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} />
+      <Navbar
+  currentPage={currentPage}
+  setCurrentPage={setCurrentPage}
+  onLogout={() => setIsLoggedIn(false)}
+/>
       <main className="main-content">
         {renderPage()}
       </main>

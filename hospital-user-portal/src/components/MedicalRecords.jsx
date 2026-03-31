@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot, query, where, orderBy } from 'firebase/firestore';
 import { QRCodeSVG } from 'qrcode.react';
+import VideoCall from './VideoCall';
 
 function MedicalRecords() {
   const [loading, setLoading] = useState(true);
   const [appointments, setAppointments] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
   const [labResults, setLabResults] = useState([]);
+  const [activeCalls, setActiveCalls] = useState({});
+const [openCall, setOpenCall] = useState(null);
 
   // HARDCODED USER INFO (for now)
   const currentUser = {
@@ -79,6 +82,25 @@ function MedicalRecords() {
       unsubscribePrescriptions();
       unsubscribeLabResults();
     };
+  }, []); // ← outer useEffect closes here, cleanly
+
+  // Separate listener for live calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const unsub = onSnapshot(collection(db, 'calls'), (snap) => {
+        const live = {};
+        snap.docs.forEach((d) => {
+          const data = d.data();
+          if (data.status === 'calling' || data.status === 'active') {
+            live[d.id] = { ...data, callDocId: d.id };
+          }
+        });
+        setActiveCalls(live);
+      });
+      return () => unsub();
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, []);
 
   if (loading) {
@@ -87,6 +109,14 @@ function MedicalRecords() {
 
   return (
     <div className="slide-up">
+      {/* ── VIDEO CALL OVERLAY ── */}
+      {openCall && (
+        <VideoCall
+          appointment={openCall}
+          currentUser={{ uid: currentUser.id, displayName: currentUser.name, email: '', role: 'patient' }}
+          onClose={() => setOpenCall(null)}
+        />
+      )}
       <div className="page-header">
         <h1>Medical Records</h1>
         <p>Complete overview of your health history and current medications</p>
@@ -239,33 +269,89 @@ function MedicalRecords() {
 
                   {/* QR Code - shows until appointment is completed */}
                   {visit.status !== 'completed' && visit.status !== 'cancelled' && (
-                    <div style={{
-                      marginTop: '1rem',
-                      padding: '1rem',
-                      background: 'white',
-                      borderRadius: '12px',
-                      border: '1px solid var(--color-border)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '1.5rem'
-                    }}>
-                      <div>
-                        <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--color-primary)', marginBottom: '0.25rem' }}>
-                          🏥 Your Appointment QR Code
-                        </p>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--color-text-light)' }}>
-                          Show this at the hospital reception
-                        </p>
-                      </div>
-                      {console.log('Visit ID:', visit.id)}
-                      <QRCodeSVG
-  value={visit.id}
-  size={120}
-  level="L"
-  marginSize={10}
-/>
-                    </div>
-                  )}
+  <div style={{
+    marginTop: '1rem',
+    padding: '1rem',
+    background: 'white',
+    borderRadius: '12px',
+    border: '1px solid var(--color-border)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1.5rem',
+    flexWrap: 'wrap'
+  }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      <div>
+        <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--color-primary)', marginBottom: '0.25rem' }}>
+          🏥 Your Appointment QR Code
+        </p>
+        <p style={{ fontSize: '0.8rem', color: 'var(--color-text-light)' }}>
+          Show this at the hospital reception
+        </p>
+      </div>
+
+      {/* Video call box — always visible */}
+      <div style={{
+        padding: '0.75rem 1rem',
+        background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+        borderRadius: '10px',
+        border: '1px solid #86efac',
+      }}>
+        <p style={{ fontSize: '0.85rem', fontWeight: '600', color: '#15803d', marginBottom: '0.25rem' }}>
+          📹 Video Consultation
+        </p>
+        {(() => {
+          const liveCall = Object.values(activeCalls).find(
+            c => c.appointmentId === visit.id
+          ) || (Object.values(activeCalls)[0] || null);
+
+          if (liveCall) {
+            return (
+              <button
+                onClick={() => setOpenCall({ appointment: visit, callDocId: liveCall.callDocId })}
+                style={{
+                  marginTop: '0.4rem',
+                  padding: '0.6rem 1.2rem',
+                  background: '#059669',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <span style={{
+                  width: 8, height: 8, borderRadius: '50%',
+                  background: '#a7f3d0',
+                  display: 'inline-block',
+                  animation: 'dot-pulse 1.2s ease-in-out infinite'
+                }}/>
+                Join Call — Doctor is waiting
+              </button>
+            );
+          }
+
+          return (
+            <p style={{ fontSize: '0.8rem', color: '#16a34a', margin: 0 }}>
+              Your doctor will start a call when ready. You'll see a Join button here.
+            </p>
+          );
+        })()}
+      </div>
+    </div>
+    {console.log('Visit ID:', visit.id)}
+    <QRCodeSVG
+      value={visit.id}
+      size={120}
+      level="L"
+      marginSize={10}
+    />
+  </div>
+)}
                 </div>
               </div>
             ))}
@@ -336,6 +422,12 @@ function MedicalRecords() {
           </div>
         )}
       </div>
+      <style>{`
+  @keyframes dot-pulse {
+    0%,100% { transform:scale(1); opacity:1; }
+    50%      { transform:scale(1.7); opacity:.4; }
+  }
+`}</style>
     </div>
   );
 }

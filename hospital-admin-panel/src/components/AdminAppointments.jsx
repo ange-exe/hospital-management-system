@@ -25,6 +25,7 @@ const [bookForm, setBookForm] = useState({
   time: '',
   reasonForVisit: '',
   symptoms: '',
+  vehicleSupport: '',   // 👈 add this
   preferredContact: 'email'
 });
 const [isBooking, setIsBooking] = useState(false);
@@ -279,16 +280,24 @@ const handlePatientIdChange = async (e) => {
 
   const handleBookForPatient = async (e) => {
   e.preventDefault();
-  if (!bookForm.patientName || !bookForm.patientId || !bookForm.department || !bookForm.date || !bookForm.time || !bookForm.reasonForVisit) {
-    alert('Please fill all required fields.');
-    return;
-  }
+  const isUrgentAdmin = bookForm.reasonForVisit === 'URGENT CARE';
+if (!bookForm.patientName || !bookForm.patientId || !bookForm.reasonForVisit) {
+  alert('Please fill all required fields.');
+  return;
+}
+if (!isUrgentAdmin && (!bookForm.department || !bookForm.date || !bookForm.time)) {
+  alert('Please fill all required fields.');
+  return;
+}
   setIsBooking(true);
   try {
     const tokenNumber = Date.now().toString().slice(-4);
     await addDoc(collection(db, 'appointments'), {
       ...bookForm,
       status: 'confirmed',
+      isUrgent: isUrgentAdmin,                                    // 👈 add
+  date: isUrgentAdmin ? 'ASAP' : bookForm.date,              // 👈 add
+  time: isUrgentAdmin ? 'ASAP' : bookForm.time,
       tokenNumber,
       bookedByAdmin: true,
       createdAt: Timestamp.now()
@@ -391,6 +400,48 @@ const handlePatientIdChange = async (e) => {
     <div style={{ padding: '1.5rem' }}>
       <form onSubmit={handleBookForPatient}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+          <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+            <label className="form-label">Reason for Visit *</label>
+            <select className="form-select" value={bookForm.reasonForVisit} required
+              onChange={(e) => setBookForm({ ...bookForm, reasonForVisit: e.target.value })}>
+              <option value="">Select reason</option>
+              {['URGENT CARE', 'General Checkup', 'Follow-up', 'Vaccination', 'Other'].map(r => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </div>
+          {bookForm.reasonForVisit === 'URGENT CARE' && (
+  <>
+    <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+      <label className="form-label">Symptoms *</label>
+      <textarea className="form-textarea" rows="3"
+        placeholder="Describe patient symptoms..."
+        value={bookForm.symptoms}
+        onChange={(e) => setBookForm({ ...bookForm, symptoms: e.target.value })}
+        required
+      />
+    </div>
+    <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+      <label className="form-label">Vehicle / Ambulance Support?</label>
+      <div style={{ display: 'flex', gap: '2rem', paddingTop: '0.5rem' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '400' }}>
+          <input type="radio" name="adminVehicleSupport" value="yes"
+            checked={bookForm.vehicleSupport === 'yes'}
+            onChange={(e) => setBookForm({ ...bookForm, vehicleSupport: e.target.value })}
+            style={{ width: 'auto' }} />
+          Yes 🚗
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '400' }}>
+          <input type="radio" name="adminVehicleSupport" value="no"
+            checked={bookForm.vehicleSupport === 'no'}
+            onChange={(e) => setBookForm({ ...bookForm, vehicleSupport: e.target.value })}
+            style={{ width: 'auto' }} />
+          No
+        </label>
+      </div>
+    </div>
+  </>
+)}
           <div className="form-group">
             <label className="form-label">Patient Name *</label>
             <input type="text" className="form-input" placeholder="e.g., Raju Rastogi"
@@ -403,6 +454,8 @@ const handlePatientIdChange = async (e) => {
     value={bookForm.patientId}
     onChange={handlePatientIdChange} required />
 </div>
+{bookForm.reasonForVisit !== 'URGENT CARE' && (
+<>
           <div className="form-group">
             <label className="form-label">Department *</label>
             <select className="form-select" value={bookForm.department} required
@@ -411,6 +464,8 @@ const handlePatientIdChange = async (e) => {
               {departments.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
+          </>
+)}
           <div className="form-group">
             <label className="form-label">Provider</label>
             <select className="form-select" value={bookForm.provider} disabled={!bookForm.department}
@@ -438,16 +493,7 @@ const handlePatientIdChange = async (e) => {
 ))}
             </select>
           </div>
-          <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-            <label className="form-label">Reason for Visit *</label>
-            <select className="form-select" value={bookForm.reasonForVisit} required
-              onChange={(e) => setBookForm({ ...bookForm, reasonForVisit: e.target.value })}>
-              <option value="">Select reason</option>
-              {['URGENT CARE', 'General Checkup', 'Follow-up', 'Vaccination', 'Other'].map(r => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-          </div>
+          
           <div className="form-group" style={{ gridColumn: '1 / -1' }}>
             <label className="form-label">Symptoms / Notes</label>
             <textarea className="form-textarea" rows="3" placeholder="Additional notes..."
@@ -923,6 +969,18 @@ const handlePatientIdChange = async (e) => {
                   </div>
                 )}
 
+{selectedAppointment.isUrgent && (
+  <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+    <span style={{ padding: '0.35rem 0.75rem', background: '#fef2f2', color: '#991b1b', border: '1px solid #fca5a5', borderRadius: '20px', fontWeight: '700', fontSize: '0.85rem' }}>
+      🚨 URGENT CARE
+    </span>
+    {selectedAppointment.vehicleSupport === 'yes' && (
+      <span style={{ padding: '0.35rem 0.75rem', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #93c5fd', borderRadius: '20px', fontWeight: '700', fontSize: '0.85rem' }}>
+        🚗 Vehicle Support Requested
+      </span>
+    )}
+  </div>
+)}
                 {selectedAppointment.symptoms && (
                   <div style={{ marginBottom: '1.5rem' }}>
                     <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>

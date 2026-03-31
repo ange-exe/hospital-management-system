@@ -999,10 +999,11 @@ if (!isUrgentAdmin && (!bookForm.department || !bookForm.date || !bookForm.time)
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
-                  {(!selectedAppointment.status || selectedAppointment.status === 'pending') && (
-                    <button 
-                      className="btn btn-success"
+                <div style={{ display: 'flex', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
+  <CallButton appointment={selectedAppointment} />
+  {(!selectedAppointment.status || selectedAppointment.status === 'pending') && (
+    <button 
+      className="btn btn-success"
                       onClick={() => {
                         handleApprove(selectedAppointment.id);
                         setSelectedAppointment(null);

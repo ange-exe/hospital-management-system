@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { db, storage } from '../firebase';
 import { collection, getDocs, query, where, orderBy, addDoc, Timestamp, updateDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { doc as firestoreDoc, onSnapshot as firestoreOnSnapshot } from 'firebase/firestore';
+import VideoCall from './VideoCall';
 
 function AdminMedicalRecords() {
   const [patients, setPatients] = useState([]);
@@ -37,9 +39,32 @@ function AdminMedicalRecords() {
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [appointmentNotes, setAppointmentNotes] = useState('');
   const [appointmentDiagnosis, setAppointmentDiagnosis] = useState('');
+  const [openCall, setOpenCall] = useState(null);
+  const [activeCalls, setActiveCalls] = useState({});
+
+  const ADMIN_USER = {
+    uid: 'admin-001',
+    displayName: 'Admin Doctor',
+    email: 'admin@hospital.com',
+    role: 'doctor',
+  };
 
   useEffect(() => {
     loadPatients();
+  }, []);
+
+useEffect(() => {
+    const unsub = firestoreOnSnapshot(collection(db, 'calls'), (snap) => {
+      const live = {};
+      snap.docs.forEach((d) => {
+        const data = d.data();
+        if (data.status === 'calling' || data.status === 'active') {
+          live[d.id] = { ...data, callDocId: d.id };
+        }
+      });
+      setActiveCalls(live);
+    });
+    return () => unsub();
   }, []);
 
   const loadPatients = async () => {
@@ -224,6 +249,13 @@ function AdminMedicalRecords() {
 
   return (
     <div className="fade-in">
+      {openCall && (
+        <VideoCall
+          appointment={openCall}
+          currentUser={ADMIN_USER}
+          onClose={() => setOpenCall(null)}
+        />
+      )}
       <div className="admin-header">
         <h1>Medical Records</h1>
         <div className="admin-header-actions">
@@ -299,13 +331,40 @@ function AdminMedicalRecords() {
                           <div>Last Visit: {selectedPatient.lastVisit}</div>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <span className="badge badge-info">{patientRecords.appointments.length} Visits</span>
-                        <span className="badge badge-success">{patientRecords.prescriptions.length} Prescriptions</span>
-                        <span className="badge badge-pending">{patientRecords.labResults.length} Lab Results</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.75rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <span className="badge badge-info">{patientRecords.appointments.length} Visits</span>
+                          <span className="badge badge-success">{patientRecords.prescriptions.length} Prescriptions</span>
+                          <span className="badge badge-pending">{patientRecords.labResults.length} Lab Results</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const appt = patientRecords.appointments.find(
+                              a => a.status !== 'completed' && a.status !== 'cancelled'
+                            ) || patientRecords.appointments[0];
+                            setOpenCall(appt || { id: selectedPatient.id, patientName: selectedPatient.name, provider: ADMIN_USER.displayName, department: 'Medical' });
+                          }}
+                          style={{
+                            padding: '0.75rem 1.5rem',
+                            background: 'linear-gradient(135deg, #059669, #047857)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '10px',
+                            fontWeight: 700,
+                            fontSize: '1rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            boxShadow: '0 4px 12px rgba(5,150,105,0.4)',
+                          }}
+                        >
+                          📹 Start Video Call
+                        </button>
                       </div>
                     </div>
                   </div>
+                  
                 </div>
 
                 {/* Appointments History */}

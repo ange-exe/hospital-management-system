@@ -33,8 +33,19 @@ function Appointments() {
   const [callDuration, setCallDuration] = useState(0);
   const [transcript, setTranscript] = useState([]);
   const [showTranscript, setShowTranscript] = useState(false);
+  const [pastTranscripts, setPastTranscripts] = useState([]);
+const [showHistory, setShowHistory] = useState(false);
   const transcriptEndRef = useRef(null);
   const timerRef = useRef(null);
+  const transcriptRef = useRef([]);
+
+const updateTranscript = (updaterFn) => {
+  setTranscript(prev => {
+    const next = updaterFn(prev);
+    transcriptRef.current = next; // mirror into ref instantly
+    return next;
+  });
+};
 
   const reasonOptions = [
     'URGENT CARE',
@@ -68,6 +79,32 @@ function Appointments() {
 
   const availableProviders = getAvailableProviders();
 
+const handleVapiBooking = async (params) => {
+  console.log('VAPI params received:', params); // keep for debugging
+  try {
+    const nextToken = Date.now().toString().slice(-4);
+    await addDoc(collection(db, 'appointments'), {
+      department: params.department || '',
+      provider: params.doctor_id || 'Any Available Provider',
+      date: params.date || '',
+      time: params.time_slot || '',         // was params.time, now params.time_slot
+      reasonForVisit: params.reason ||  'General Checkup',
+      symptoms: params.symptoms || '',
+      vehicleSupport: params.vehicleSupport || 'no',
+      isUrgent: params.isUrgent || false,
+      status: 'pending',
+      preferredContact: 'phone',
+      patientName: 'Raju Rastogi',
+      patientId: 'STU-2024-1847',
+      tokenNumber: nextToken,
+      bookedByVapi: true,
+      createdAt: Timestamp.now()
+    });
+  } catch (error) {
+    console.error('❌ VAPI booking failed:', error);
+  }
+};
+
   useEffect(() => {
     const vapi = new Vapi(VAPI_PUBLIC_KEY);
     vapiRef.current = vapi;
@@ -81,20 +118,55 @@ function Appointments() {
     });
 
     vapi.on('call-end', () => {
-      setVapiStatus('idle');
-      clearInterval(timerRef.current);
-      setCallDuration(0);
-    });
+  setVapiStatus('idle');
+  clearInterval(timerRef.current);
+  setCallDuration(0);
+  if (transcriptRef.current.length > 0) {
+    saveTranscriptToFirebase(transcriptRef.current); // reads from ref, always reliable
+  }
+});
 
-    vapi.on('message', (msg) => {
-      if (msg.type === 'transcript' && msg.transcriptType === 'final') {
-        setTranscript(prev => [...prev, {
-          role: msg.role,
-          text: msg.transcript,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }]);
+vapi.on('message', (msg) => {
+  console.log('VAPI MESSAGE:', msg.type, msg); // keep this for now to debug
+
+  if (msg.transcriptType === 'final') {
+  updateTranscript(prev => {
+    const withoutPartial = prev.filter(m => !m.isPartial);
+    return [...withoutPartial, {
+      role: msg.role,
+      text: msg.transcript,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isPartial: false
+    }];
+  });
+} else if (msg.transcriptType === 'partial') {
+  updateTranscript(prev => {
+    const withoutPartial = prev.filter(m => !m.isPartial);
+    return [...withoutPartial, {
+      role: msg.role,
+      text: msg.transcript,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isPartial: true
+    }];
+  });
+}
+
+  // Tools send as 'tool-calls' — this is what your setup uses
+  if (msg.type === 'tool-calls') {
+    msg.toolCallList?.forEach((tool) => {
+      if (tool.function?.name === 'book_appointment') {
+        try {
+          const params = typeof tool.function.arguments === 'string'
+            ? JSON.parse(tool.function.arguments)
+            : tool.function.arguments;
+          handleVapiBooking(params);
+        } catch (err) {
+          console.error('Failed to parse tool arguments:', err);
+        }
       }
     });
+  }
+});
 
     vapi.on('error', (err) => {
       console.error('VAPI error FULL:', JSON.stringify(err));
@@ -108,6 +180,22 @@ function Appointments() {
       vapi.stop();
     };
   }, []);
+
+const saveTranscriptToFirebase = async (transcriptData) => {
+  try {
+    await addDoc(collection(db, 'call_transcripts'), {
+      patientId: 'STU-2024-1847',
+      patientName: 'Raju Rastogi',
+      transcript: transcriptData,
+      createdAt: Timestamp.now(),
+      date: new Date().toLocaleDateString(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
+    console.log('✅ Transcript saved!');
+  } catch (err) {
+    console.error('❌ Failed to save transcript:', err);
+  }
+};
 
   useEffect(() => {
     const appointmentsRef = collection(db, 'appointments');
@@ -133,6 +221,21 @@ function Appointments() {
     });
     return () => unsubscribe();
   }, []);
+
+useEffect(() => {
+  const transcriptsRef = collection(db, 'call_transcripts');
+  const q = query(
+    transcriptsRef,
+    where('patientId', '==', 'STU-2024-1847'),
+    orderBy('createdAt', 'desc')
+  );
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const history = [];
+    snapshot.forEach(doc => history.push({ id: doc.id, ...doc.data() }));
+    setPastTranscripts(history);
+  });
+  return () => unsubscribe();
+}, []);
 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -223,6 +326,7 @@ function Appointments() {
       setFormData(emptyForm);
       setSelectedDate('');
       setSlotAvailability({});
+      setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 5000);
     } catch (error) {
       console.error(' Error saving appointment:', error);
@@ -786,10 +890,53 @@ function Appointments() {
                     }} />
                   )}
                   <span style={{ color: 'white', fontWeight: '700', fontSize: '0.95rem' }}>
-                    {vapiStatus === 'active' ? 'Live — Aark is speaking' : 'Call Transcript'}
-                  </span>
+  {vapiStatus === 'active' ? 'Live — Aark is speaking' : 'Call Transcript'}
+</span>
+<button
+  onClick={() => setShowHistory(prev => !prev)}
+  style={{
+    background: 'rgba(255,255,255,0.2)',
+    border: 'none',
+    borderRadius: '6px',
+    color: 'white',
+    fontSize: '0.75rem',
+    padding: '0.2rem 0.5rem',
+    cursor: 'pointer'
+  }}
+>
+  {showHistory ? 'Current' : 'History'}
+</button>
                 </div>
               </div>
+
+{showHistory && (
+  <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', background: '#f9fafb' }}>
+    {pastTranscripts.length === 0 ? (
+      <p style={{ textAlign: 'center', color: '#9ca3af', fontSize: '0.85rem' }}>No past calls yet</p>
+    ) : (
+      pastTranscripts.map((call, i) => (
+        <div key={call.id} style={{
+          marginBottom: '1rem',
+          borderBottom: '1px solid #e5e7eb',
+          paddingBottom: '1rem'
+        }}>
+          <p style={{ fontWeight: '700', fontSize: '0.8rem', color: '#6366F1', marginBottom: '0.5rem' }}>
+            📞 {call.date} at {call.time}
+          </p>
+          {call.transcript.map((msg, j) => (
+            <p key={j} style={{
+              fontSize: '0.78rem',
+              color: msg.role === 'user' ? '#6366F1' : '#374151',
+              margin: '0.2rem 0'
+            }}>
+              <strong>{msg.role === 'user' ? 'You' : 'Aark'}:</strong> {msg.text}
+            </p>
+          ))}
+        </div>
+      ))
+    )}
+  </div>
+)}
 
               <div style={{
                 flex: 1, overflowY: 'auto',
@@ -825,7 +972,9 @@ function Appointments() {
                         color: msg.role === 'user' ? 'white' : '#1f2937',
                         fontSize: '0.85rem',
                         lineHeight: '1.4',
-                        boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                        opacity: msg.isPartial ? 0.6 : 1,
+                        fontStyle: msg.isPartial ? 'italic' : 'normal'
                       }}>
                         {msg.text}
                       </div>

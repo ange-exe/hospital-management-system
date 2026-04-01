@@ -351,7 +351,7 @@ function AdminDoctors() {
     <div className="adoc-root" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
       <style>{styles}</style>
       <div style={{ textAlign: 'center', color: '#94a3b8', fontFamily: 'DM Sans, sans-serif' }}>
-        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⏳</div>Loading doctors…
+        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}></div>Loading doctors…
       </div>
     </div>
   );
@@ -375,9 +375,9 @@ function AdminDoctors() {
         {/* Stats */}
         <div className="adoc-stats">
           {[
-            { label: 'Total Staff',      value: doctors.length,                                          icon: '👨‍⚕️', bg: '#eff6ff', color: '#2563eb' },
-            { label: 'Departments',      value: new Set(doctors.map(d => d.department)).size,            icon: '🏥', bg: '#f0fdf4', color: '#16a34a' },
-            { label: 'Specializations',  value: new Set(doctors.map(d => d.specialization)).size,       icon: '🩺', bg: '#f0fdfa', color: '#0d9488' },
+            { label: 'Total Staff',      value: doctors.length,                                          icon: '', bg: '#eff6ff', color: '#2563eb' },
+            { label: 'Departments',      value: new Set(doctors.map(d => d.department)).size,            icon: '', bg: '#f0fdf4', color: '#16a34a' },
+            { label: 'Specializations',  value: new Set(doctors.map(d => d.specialization)).size,       icon: '', bg: '#f0fdfa', color: '#0d9488' },
           ].map(s => (
             <div key={s.label} className="adoc-stat adoc-fadein">
               <div className="adoc-stat-icon" style={{ background: s.bg, color: s.color }}>{s.icon}</div>
@@ -426,7 +426,7 @@ function AdminDoctors() {
                 </div>
               </div>
               <button className="adoc-btn adoc-btn-primary" style={{ marginTop: '1.25rem' }} onClick={editingDoctor ? handleUpdate : handleAdd}>
-                {editingDoctor ? '💾 Update Doctor' : '+ Add Doctor'}
+                {editingDoctor ? ' Update Doctor' : '+ Add Doctor'}
               </button>
             </div>
           </div>
@@ -455,7 +455,7 @@ function AdminDoctors() {
 
           {filteredDoctors.length === 0 ? (
             <div className="adoc-empty">
-              <span className="adoc-empty-icon">👨‍⚕️</span>
+              <span className="adoc-empty-icon"></span>
               <div style={{ fontWeight: 600, color: '#475569' }}>No doctors in this department</div>
             </div>
           ) : (
@@ -470,11 +470,11 @@ function AdminDoctors() {
                     <div className="adoc-doctor-avatar">{getInitials(doctor.name)}</div>
                     <div className="adoc-doctor-name">{doctor.name}</div>
                     <div className="adoc-doctor-spec">{doctor.specialization}</div>
-                    <div className="adoc-doctor-detail">📞 <span>{doctor.phone || '—'}</span></div>
-                    <div className="adoc-doctor-detail">✉️ <span style={{ wordBreak: 'break-all' }}>{doctor.email || '—'}</span></div>
+                    <div className="adoc-doctor-detail"> <span>{doctor.phone || '—'}</span></div>
+                    <div className="adoc-doctor-detail"> <span style={{ wordBreak: 'break-all' }}>{doctor.email || '—'}</span></div>
                     <div className="adoc-doctor-actions">
-                      <button className="adoc-btn adoc-btn-secondary adoc-btn-sm" style={{ flex: 1 }} onClick={() => handleEdit(doctor)}>✏️ Edit</button>
-                      <button className="adoc-btn adoc-btn-danger adoc-btn-sm" style={{ flex: 1 }} onClick={() => handleDelete(doctor.id)}>🗑 Delete</button>
+                      <button className="adoc-btn adoc-btn-secondary adoc-btn-sm" style={{ flex: 1 }} onClick={() => handleEdit(doctor)}> Edit</button>
+                      <button className="adoc-btn adoc-btn-danger adoc-btn-sm" style={{ flex: 1 }} onClick={() => handleDelete(doctor.id)}> Delete</button>
                     </div>
                   </div>
                 );

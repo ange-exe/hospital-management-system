@@ -704,7 +704,7 @@ function AdminAppointments() {
       const list = [];
       querySnapshot.forEach(d => list.push({ id: d.id, ...d.data() }));
       setAppointments(list);
-    } catch (error) { console.error('❌ Error loading appointments:', error); }
+    } catch (error) { console.error(' Error loading appointments:', error); }
     finally { setLoading(false); }
   };
 
@@ -790,7 +790,7 @@ function AdminAppointments() {
       <div className="aappt-root" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
         <style>{styles}</style>
         <div style={{ textAlign: 'center', color: '#94a3b8', fontFamily: 'DM Sans, sans-serif' }}>
-          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⏳</div>
+          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}></div>
           Loading appointments…
         </div>
       </div>
@@ -811,7 +811,7 @@ function AdminAppointments() {
           <p>Manage, scan & track all patient appointments</p>
         </div>
         <button className="aappt-btn aappt-btn-secondary" onClick={loadAppointments}>
-          🔄 Refresh
+           Refresh
         </button>
       </div>
 
@@ -820,10 +820,10 @@ function AdminAppointments() {
         {/* ── Stats ── */}
         <div className="aappt-stats" style={{ marginTop: '1.75rem' }}>
           {[
-            { label: 'Total', value: appointments.length, color: '#3b82f6', bg: '#eff6ff', icon: '📋' },
-            { label: 'Pending', value: appointments.filter(a => (a.status||'pending') === 'pending').length, color: '#f59e0b', bg: '#fffbeb', icon: '⏳' },
-            { label: 'Confirmed', value: appointments.filter(a => a.status === 'confirmed').length, color: '#10b981', bg: '#ecfdf5', icon: '✓' },
-            { label: 'Cancelled', value: appointments.filter(a => a.status === 'cancelled').length, color: '#ef4444', bg: '#fef2f2', icon: '✕' },
+            { label: 'Total', value: appointments.length, color: '#3b82f6', bg: '#eff6ff', icon: '' },
+            { label: 'Pending', value: appointments.filter(a => (a.status||'pending') === 'pending').length, color: '#f59e0b', bg: '#fffbeb', icon: '' },
+            { label: 'Confirmed', value: appointments.filter(a => a.status === 'confirmed').length, color: '#10b981', bg: '#ecfdf5', icon: '' },
+            { label: 'Cancelled', value: appointments.filter(a => a.status === 'cancelled').length, color: '#ef4444', bg: '#fef2f2', icon: '' },
           ].map(s => (
             <div key={s.label} className="aappt-stat aappt-fadein">
               <div className="aappt-stat-icon" style={{ background: s.bg, color: s.color }}>{s.icon}</div>
@@ -849,7 +849,7 @@ function AdminAppointments() {
 
           {bookSuccess && (
             <div className="aappt-card-body" style={{ paddingTop: 0 }}>
-              <div className="aappt-info-box green">✅ Appointment booked! Status set to Confirmed.</div>
+              <div className="aappt-info-box green"> Appointment booked! Status set to Confirmed.</div>
             </div>
           )}
 
@@ -887,7 +887,7 @@ function AdminAppointments() {
                                 checked={bookForm.vehicleSupport === v}
                                 onChange={e => setBookForm({ ...bookForm, vehicleSupport: e.target.value })}
                                 style={{ width: 'auto' }} />
-                              {v === 'yes' ? 'Yes 🚗' : 'No'}
+                              {v === 'yes' ? 'Yes ' : 'No'}
                             </label>
                           ))}
                         </div>
@@ -965,7 +965,7 @@ function AdminAppointments() {
                 </div>
 
                 <button type="submit" className="aappt-btn aappt-btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '0.75rem' }} disabled={isBooking}>
-                  {isBooking ? '⏳ Booking…' : '📋 Book Appointment'}
+                  {isBooking ? ' Booking…' : ' Book Appointment'}
                 </button>
               </form>
             </div>
@@ -982,12 +982,12 @@ function AdminAppointments() {
         <div className="aappt-card aappt-fadein">
           <div className="aappt-card-header">
             <div>
-              <h2 className="aappt-card-title">📷 Scan Patient QR Code</h2>
+              <h2 className="aappt-card-title"> Scan Patient QR Code</h2>
               <div className="aappt-divider" />
             </div>
             <button className="aappt-btn aappt-btn-primary"
               onClick={() => { setScanning(!scanning); setScanResult(null); setScanError(''); }}>
-              {scanning ? '⏹ Stop' : '📷 Start Scanner'}
+              {scanning ? '⏹ Stop' : ' Start Scanner'}
             </button>
           </div>
 
@@ -1007,7 +1007,7 @@ function AdminAppointments() {
           {scanResult && (
             <div className="aappt-card-body">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                <span style={{ fontSize: '1.1rem' }}>✅</span>
+                <span style={{ fontSize: '1.1rem' }}></span>
                 <span style={{ font: '700 1rem Syne, sans-serif', color: '#059669' }}>Patient Scanned!</span>
                 <span className={`aappt-badge ${getBadgeClass(scanResult.status)}`}>{scanResult.status}</span>
               </div>
@@ -1040,7 +1040,7 @@ function AdminAppointments() {
 
                   {showBillForm && (
                     <div style={{ background: '#f8fafc', borderRadius: '12px', padding: '1.25rem', border: '1px solid #e2e8f0' }}>
-                      <h4 style={{ font: '700 0.95rem Syne, sans-serif', color: '#0f172a', marginBottom: '1rem' }}>🧾 Bill Items</h4>
+                      <h4 style={{ font: '700 0.95rem Syne, sans-serif', color: '#0f172a', marginBottom: '1rem' }}> Bill Items</h4>
                       {billItems.map((item, idx) => (
                         <div key={idx} className="aappt-bill-row">
                           <input className="aappt-form-input" type="text" placeholder="Item name" value={item.name}
@@ -1069,12 +1069,12 @@ function AdminAppointments() {
                   {scanResult.status === 'completed' && !scanResult.paid && (
                     <button className="aappt-btn aappt-btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '0.75rem', background: 'linear-gradient(135deg,#0ea5e9,#0284c7)' }}
                       onClick={() => markAsPaid(scanResult.appointmentId)}>
-                      💳 Mark as Paid
+                       Mark as Paid
                     </button>
                   )}
 
                   {scanResult.paid && (
-                    <div className="aappt-info-box blue" style={{ justifyContent: 'center', fontWeight: 700 }}>✅ Payment Received!</div>
+                    <div className="aappt-info-box blue" style={{ justifyContent: 'center', fontWeight: 700 }}> Payment Received!</div>
                   )}
                 </div>
               </div>
@@ -1083,7 +1083,7 @@ function AdminAppointments() {
 
           {!scanning && !scanResult && (
             <div className="aappt-scan-placeholder">
-              <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem', opacity: 0.4 }}>📷</div>
+              <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem', opacity: 0.4 }}></div>
               <div style={{ fontSize: '0.875rem' }}>Click "Start Scanner" to scan a patient's QR code</div>
             </div>
           )}
@@ -1092,7 +1092,7 @@ function AdminAppointments() {
         {/* ── Filters ── */}
         <div className="aappt-filters">
           <div className="aappt-filter-group">
-            <span className="aappt-filter-label">🔍 Department</span>
+            <span className="aappt-filter-label"> Department</span>
             <select className="aappt-select" value={departmentFilter} onChange={e => setDepartmentFilter(e.target.value)}>
               <option value="all">All Departments</option>
               {departments.map(d => <option key={d} value={d}>{d}</option>)}
@@ -1137,7 +1137,7 @@ function AdminAppointments() {
           <div style={{ padding: 0 }}>
             {filteredAppointments.length === 0 ? (
               <div className="aappt-empty">
-                <span className="aappt-empty-icon">📅</span>
+                <span className="aappt-empty-icon"></span>
                 <div style={{ fontWeight: 600, color: '#475569', marginBottom: '0.25rem' }}>No appointments found</div>
                 <div style={{ fontSize: '0.8rem' }}>
                   {statusFilter !== 'all' || dateFilter ? 'Try adjusting your filters' : 'New appointments will appear here'}
@@ -1238,7 +1238,7 @@ function AdminAppointments() {
                   <span className="aappt-badge urgent">🚨 URGENT CARE</span>
                   {selectedAppointment.vehicleSupport === 'yes' && (
                     <span style={{ padding: '0.25rem 0.65rem', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #93c5fd', borderRadius: '20px', fontSize: '0.68rem', fontWeight: 700 }}>
-                      🚗 Vehicle Support Requested
+                       Vehicle Support Requested
                     </span>
                   )}
                 </div>

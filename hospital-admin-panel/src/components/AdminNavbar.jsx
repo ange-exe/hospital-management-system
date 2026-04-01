@@ -201,11 +201,11 @@ const styles = `
 
 const navItems = [
   { id: 'dashboard',       label: 'Dashboard',       icon: '⊞' },
-  { id: 'appointments',    label: 'Appointments',     icon: '📅' },
-  { id: 'medical-records', label: 'Medical Records',  icon: '🗂️' },
-  { id: 'doctors',         label: 'Doctors',          icon: '👨‍⚕️' },
-  { id: 'patients',        label: 'Patients',         icon: '👥' },
-  { id: 'health-articles', label: 'Health Articles',  icon: '📰' },
+  { id: 'appointments',    label: 'Appointments',     icon: '' },
+  { id: 'medical-records', label: 'Medical Records',  icon: '' },
+  { id: 'doctors',         label: 'Doctors',          icon: '' },
+  { id: 'patients',        label: 'Patients',         icon: '' },
+  { id: 'health-articles', label: 'Health Articles',  icon: '' },
 ];
 
 function AdminNavbar({ currentPage, setCurrentPage, onLogout }) {
@@ -215,7 +215,7 @@ function AdminNavbar({ currentPage, setCurrentPage, onLogout }) {
 
       <div className="sidebar-header">
         <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">🏥</div>
+          <div className="sidebar-logo-icon"></div>
           <div>
             <span className="sidebar-logo-title">MediAdmin</span>
             <span className="sidebar-logo-sub">Control Panel</span>
@@ -241,7 +241,7 @@ function AdminNavbar({ currentPage, setCurrentPage, onLogout }) {
 
       <div className="sidebar-logout">
         <div className="sidebar-nav-item" onClick={onLogout}>
-          <span className="sidebar-nav-icon">🚪</span>
+          <span className="sidebar-nav-icon"></span>
           <span>Logout</span>
         </div>
       </div>

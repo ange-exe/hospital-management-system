@@ -352,7 +352,7 @@ const statConfig = [
   {
     label: 'Total Appointments',
     key: 'totalAppointments',
-    icon: '📅',
+    icon: '',
     sub: 'All time',
     subClass: '',
     accentColor: '#3b82f6',
@@ -361,7 +361,7 @@ const statConfig = [
   {
     label: 'Pending Approval',
     key: 'pendingAppointments',
-    icon: '⏳',
+    icon: '',
     sub: 'Needs attention',
     subClass: '',
     accentColor: '#f59e0b',
@@ -379,7 +379,7 @@ const statConfig = [
   {
     label: "Today's Schedule",
     key: 'todayAppointments',
-    icon: '📆',
+    icon:  '',
     sub: new Date().toLocaleDateString('en-US', { weekday: 'long' }),
     subClass: '',
     accentColor: '#0d9488',
@@ -388,9 +388,9 @@ const statConfig = [
 ];
 
 const quickActions = [
-  { icon: '📋', title: 'Manage Appointments', desc: 'View, approve, and manage all appointments', label: 'Go to Appointments' },
-  { icon: '👨‍⚕️', title: 'Manage Doctors', desc: 'Add, edit, or remove doctors from the system', label: 'Manage Doctors' },
-  { icon: '👥', title: 'View Patients', desc: 'See all registered patients and their history', label: 'View Patients' },
+  { icon: '', title: 'Manage Appointments', desc: 'View, approve, and manage all appointments', label: 'Go to Appointments' },
+  { icon: '', title: 'Manage Doctors', desc: 'Add, edit, or remove doctors from the system', label: 'Manage Doctors' },
+  { icon: '', title: 'View Patients', desc: 'See all registered patients and their history', label: 'View Patients' },
 ];
 
 function getBadgeClass(status) {
@@ -428,7 +428,7 @@ function AdminDashboard() {
       });
       setRecentAppointments(appointments.slice(0, 5));
     } catch (error) {
-      console.error('❌ Error loading dashboard:', error);
+      console.error(' Error loading dashboard:', error);
     } finally {
       setLoading(false);
     }
@@ -439,7 +439,7 @@ function AdminDashboard() {
       <div className="adash-root" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
         <style>{styles}</style>
         <div style={{ textAlign: 'center', color: '#94a3b8' }}>
-          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⏳</div>
+          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}></div>
           <div style={{ fontFamily: 'DM Sans, sans-serif' }}>Loading dashboard…</div>
         </div>
       </div>
@@ -496,7 +496,7 @@ function AdminDashboard() {
 
           {recentAppointments.length === 0 ? (
             <div className="adash-empty">
-              <span className="adash-empty-icon">📅</span>
+              <span className="adash-empty-icon"></span>
               <div style={{ fontWeight: 600, color: '#475569', marginBottom: '0.25rem' }}>No appointments yet</div>
               <div style={{ fontSize: '0.8rem' }}>New appointments will appear here</div>
             </div>

@@ -227,7 +227,7 @@ function AdminPatients() {
         if (patientId) patientsMap.get(patientId).appointments.push({ id: doc.id, ...appt });
       });
       setPatients(Array.from(patientsMap.values()));
-    } catch (error) { console.error('❌ Error loading patients:', error); }
+    } catch (error) { console.error(' Error loading patients:', error); }
     finally { setLoading(false); }
   };
 
@@ -243,7 +243,7 @@ function AdminPatients() {
     <div className="apat-root" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
       <style>{styles}</style>
       <div style={{ textAlign: 'center', color: '#94a3b8', fontFamily: 'DM Sans, sans-serif' }}>
-        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⏳</div>Loading patients…
+        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}></div>Loading patients…
       </div>
     </div>
   );
@@ -257,7 +257,7 @@ function AdminPatients() {
           <h1>Patients</h1>
           <p>{patients.length} registered patients · {totalAppointments} total appointments</p>
         </div>
-        <button className="apat-btn apat-btn-primary" onClick={loadPatients}>🔄 Refresh</button>
+        <button className="apat-btn apat-btn-primary" onClick={loadPatients}> Refresh</button>
       </div>
 
       <div className="apat-content">
@@ -265,9 +265,9 @@ function AdminPatients() {
         {/* Stats */}
         <div className="apat-stats">
           {[
-            { label: 'Total Patients',      value: patients.length,    icon: '👥', bg: '#eff6ff', color: '#2563eb' },
-            { label: 'Total Appointments',  value: totalAppointments,  icon: '📋', bg: '#f0fdfa', color: '#0d9488' },
-            { label: 'Avg. Appointments',   value: avgAppointments,    icon: '📊', bg: '#fdf4ff', color: '#9333ea' },
+            { label: 'Total Patients',      value: patients.length,    icon: '', bg: '#eff6ff', color: '#2563eb' },
+            { label: 'Total Appointments',  value: totalAppointments,  icon: '', bg: '#f0fdfa', color: '#0d9488' },
+            { label: 'Avg. Appointments',   value: avgAppointments,    icon: '', bg: '#fdf4ff', color: '#9333ea' },
           ].map(s => (
             <div key={s.label} className="apat-stat apat-fadein">
               <div className="apat-stat-icon" style={{ background: s.bg, color: s.color }}>{s.icon}</div>
@@ -291,7 +291,7 @@ function AdminPatients() {
           {/* Search */}
           <div style={{ padding: '1rem 1.75rem', borderBottom: '1px solid #f1f5f9' }}>
             <div className="apat-search-wrap" style={{ marginBottom: 0 }}>
-              <span className="apat-search-icon">🔍</span>
+              <span className="apat-search-icon"></span>
               <input className="apat-search" placeholder="Search by name or patient ID…"
                 value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             </div>
@@ -299,7 +299,7 @@ function AdminPatients() {
 
           {filteredPatients.length === 0 ? (
             <div className="apat-empty">
-              <span className="apat-empty-icon">👥</span>
+              <span className="apat-empty-icon"></span>
               <div style={{ fontWeight: 600, color: '#475569', marginBottom: '0.25rem' }}>
                 {searchTerm ? 'No patients match your search' : 'No patients yet'}
               </div>
@@ -350,7 +350,7 @@ function AdminPatients() {
                       </td>
                       <td>
                         <button className="apat-btn apat-btn-secondary apat-btn-sm" onClick={() => setSelectedPatient(patient)}>
-                          👁 View History
+                           View History
                         </button>
                       </td>
                     </tr>
@@ -396,9 +396,9 @@ function AdminPatients() {
                       <span className={`apat-badge ${getBadgeClass(appt.status)}`}>{appt.status || 'pending'}</span>
                     </div>
                     <div style={{ fontSize: '0.8rem', color: '#64748b', display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
-                      <span>📅 {appt.date}{appt.time ? ` · ${appt.time}` : ''}</span>
-                      {appt.provider && <span>👨‍⚕️ {appt.provider}</span>}
-                      {appt.department && <span>🏥 {appt.department}</span>}
+                      <span> {appt.date}{appt.time ? ` · ${appt.time}` : ''}</span>
+                      {appt.provider && <span> {appt.provider}</span>}
+                      {appt.department && <span> {appt.department}</span>}
                     </div>
                     {appt.reason && <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '0.35rem' }}>Reason: {appt.reason}</div>}
                   </div>

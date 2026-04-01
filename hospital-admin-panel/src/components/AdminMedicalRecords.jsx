@@ -342,7 +342,7 @@ function AdminMedicalRecords() {
     <div className="amr-root" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
       <style>{styles}</style>
       <div style={{ textAlign: 'center', color: '#94a3b8', fontFamily: 'DM Sans, sans-serif' }}>
-        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⏳</div>Loading medical records…
+        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}></div>Loading medical records…
       </div>
     </div>
   );
@@ -357,7 +357,7 @@ function AdminMedicalRecords() {
           <h1>Medical Records</h1>
           <p>Prescriptions, lab results & appointment history</p>
         </div>
-        <button className="amr-btn amr-btn-primary" onClick={loadPatients}>🔄 Refresh</button>
+        <button className="amr-btn amr-btn-primary" onClick={loadPatients}> Refresh</button>
       </div>
 
       <div className="amr-content">
@@ -374,7 +374,7 @@ function AdminMedicalRecords() {
               </div>
               <div className="amr-card-body">
                 <div className="amr-search-wrap">
-                  <span className="amr-search-icon">🔍</span>
+                  <span className="amr-search-icon"></span>
                   <input className="amr-search" placeholder="Search patients…" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                 </div>
                 <div style={{ maxHeight: '62vh', overflowY: 'auto', paddingRight: '2px' }}>
@@ -403,7 +403,7 @@ function AdminMedicalRecords() {
             {!selectedPatient ? (
               <div className="amr-card">
                 <div className="amr-placeholder">
-                  <div style={{ fontSize: '2.5rem', marginBottom: '1rem', opacity: 0.3 }}>📋</div>
+                  <div style={{ fontSize: '2.5rem', marginBottom: '1rem', opacity: 0.3 }}></div>
                   <div style={{ font: '700 1rem Syne,sans-serif', color: '#475569', marginBottom: '0.4rem' }}>Select a Patient</div>
                   <div style={{ fontSize: '0.85rem' }}>Choose a patient from the list to view their records</div>
                 </div>
@@ -429,7 +429,7 @@ function AdminMedicalRecords() {
                       const appt = patientRecords.appointments.find(a => a.status !== 'completed' && a.status !== 'cancelled') || patientRecords.appointments[0];
                       setOpenCall(appt || { id: selectedPatient.id, patientName: selectedPatient.name, provider: ADMIN_USER.displayName, department: 'Medical' });
                     }}>
-                    📹 Start Video Call
+                     Start Video Call
                   </button>
                 </div>
 
@@ -443,7 +443,7 @@ function AdminMedicalRecords() {
                   </div>
                   {patientRecords.appointments.length === 0 ? (
                     <div className="amr-empty">
-                      <span className="amr-empty-icon">📅</span>
+                      <span className="amr-empty-icon"></span>
                       <div style={{ fontWeight: 600, color: '#475569' }}>No appointments found</div>
                     </div>
                   ) : (
@@ -471,7 +471,7 @@ function AdminMedicalRecords() {
                             <td>
                               <button className="amr-btn amr-btn-secondary amr-btn-sm"
                                 onClick={() => { setSelectedAppointment(apt); setShowAppointmentNotes(true); }}>
-                                {apt.notes ? '📝 View' : '+ Notes'}
+                                {apt.notes ? ' View' : '+ Notes'}
                               </button>
                             </td>
                           </tr>
@@ -495,7 +495,7 @@ function AdminMedicalRecords() {
                   <div className="amr-card-body">
                     {showPrescriptionForm && (
                       <div className="amr-form-box">
-                        <div className="amr-form-box-title">💊 New Prescription</div>
+                        <div className="amr-form-box-title"> New Prescription</div>
                         <div className="amr-form-grid">
                           {[
                             { label: 'Medication *', key: 'medication', placeholder: 'e.g., Amoxicillin' },
@@ -551,7 +551,7 @@ function AdminMedicalRecords() {
                   <div className="amr-card-body">
                     {showLabForm && (
                       <div className="amr-form-box">
-                        <div className="amr-form-box-title">🧪 New Lab Result</div>
+                        <div className="amr-form-box-title"> New Lab Result</div>
                         <div className="amr-form-grid">
                           {[
                             { label: 'Test Name *', key: 'testName', placeholder: 'e.g., Complete Blood Count' },
@@ -573,7 +573,7 @@ function AdminMedicalRecords() {
                             <label className="amr-form-label">Upload Scan / Report (optional)</label>
                             <input type="file" className="amr-form-input" accept="image/*,.pdf"
                               onChange={e => setLabFile(e.target.files[0])} style={{ padding: '0.4rem' }} />
-                            {labFile && <div style={{ fontSize: '0.72rem', color: '#059669', marginTop: '0.25rem' }}>✅ {labFile.name}</div>}
+                            {labFile && <div style={{ fontSize: '0.72rem', color: '#059669', marginTop: '0.25rem' }}> {labFile.name}</div>}
                           </div>
                           <div className="amr-form-group full">
                             <label className="amr-form-label">Notes</label>
@@ -582,7 +582,7 @@ function AdminMedicalRecords() {
                           </div>
                         </div>
                         <button className="amr-btn amr-btn-primary" style={{ marginTop: '1rem' }} onClick={handleAddLabResult} disabled={uploadingFile}>
-                          {uploadingFile ? '⏳ Uploading…' : '🧪 Save Lab Result'}
+                          {uploadingFile ? ' Uploading…' : ' Save Lab Result'}
                         </button>
                       </div>
                     )}
@@ -601,7 +601,7 @@ function AdminMedicalRecords() {
                           {result.imageUrl && (
                             <a href={result.imageUrl} target="_blank" rel="noopener noreferrer"
                               className="amr-btn amr-btn-secondary amr-btn-sm" style={{ marginTop: '0.6rem', display: 'inline-flex' }}>
-                              📄 View Report
+                               View Report
                             </a>
                           )}
                           <div className="amr-record-footer">Test date: {result.date}</div>
@@ -643,7 +643,7 @@ function AdminMedicalRecords() {
                   onChange={e => setAppointmentNotes(e.target.value)} />
               </div>
               <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button className="amr-btn amr-btn-primary" onClick={handleUpdateAppointmentNotes}>💾 Save Notes</button>
+                <button className="amr-btn amr-btn-primary" onClick={handleUpdateAppointmentNotes}> Save Notes</button>
                 <button className="amr-btn amr-btn-secondary" onClick={() => { setShowAppointmentNotes(false); setSelectedAppointment(null); setAppointmentNotes(''); setAppointmentDiagnosis(''); }}>Cancel</button>
               </div>
             </div>

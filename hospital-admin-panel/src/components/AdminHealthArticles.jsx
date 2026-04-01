@@ -48,10 +48,10 @@ function AdminHealthArticles() {
 
 
   const dummyArticles = [
-    { id: 'dummy-101', title: "First Trimester Care: What to Expect", category: "Maternal & Infant Care", date: "February 1, 2026", author: "Dr. Vikhroli", readTime: "8 min read", excerpt: "Essential information for the first 12 weeks of pregnancy...", icon: "🤰", isDummy: true },
-    { id: 'dummy-102', title: "Managing Academic Stress: A Student's Guide", category: "Mental Health", date: "January 28, 2026", author: "Dr. Dadar", readTime: "5 min read", excerpt: "Learn evidence-based strategies for managing academic pressure...", icon: "🧠", isDummy: true },
-    { id: 'dummy-103', title: "Sleep Hygiene for College Students", category: "Sleep Health", date: "January 25, 2026", author: "Dr. Thane", readTime: "4 min read", excerpt: "Quality sleep is essential for academic performance...", icon: "😴", isDummy: true },
-    { id: 'dummy-104', title: "Nutrition on a Budget: Healthy Eating in College", category: "Nutrition", date: "January 22, 2026", author: "Nutritionist Thumper Thompson", readTime: "6 min read", excerpt: "Eating healthy doesn't have to break the bank...", icon: "🥗", isDummy: true }
+    { id: 'dummy-101', title: "First Trimester Care: What to Expect", category: "Maternal & Infant Care", date: "February 1, 2026", author: "Dr. Vikhroli", readTime: "8 min read", excerpt: "Essential information for the first 12 weeks of pregnancy...", icon: "", isDummy: true },
+    { id: 'dummy-102', title: "Managing Academic Stress: A Student's Guide", category: "Mental Health", date: "January 28, 2026", author: "Dr. Dadar", readTime: "5 min read", excerpt: "Learn evidence-based strategies for managing academic pressure...", icon: "", isDummy: true },
+    { id: 'dummy-103', title: "Sleep Hygiene for College Students", category: "Sleep Health", date: "January 25, 2026", author: "Dr. Thane", readTime: "4 min read", excerpt: "Quality sleep is essential for academic performance...", icon: "", isDummy: true },
+    { id: 'dummy-104', title: "Nutrition on a Budget: Healthy Eating in College", category: "Nutrition", date: "January 22, 2026", author: "Nutritionist Thumper Thompson", readTime: "6 min read", excerpt: "Eating healthy doesn't have to break the bank...", icon: "", isDummy: true }
   ];
 
   useEffect(() => { loadArticles(); }, []);
@@ -65,7 +65,7 @@ function AdminHealthArticles() {
       setFirebaseArticles(firebaseList);
       setArticles([...dummyArticles, ...firebaseList]);
     } catch (error) {
-      console.error('❌ Error loading articles:', error);
+      console.error(' Error loading articles:', error);
       setArticles(dummyArticles);
     } finally {
       setLoading(false);
@@ -96,7 +96,7 @@ function AdminHealthArticles() {
         date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
         createdAt: Timestamp.now()
       });
-      alert('✅ Article added successfully!');
+      alert(' Article added successfully!');
       setFormData({ title: '', category: 'Mental Health', author: '', readTime: '', excerpt: '' });
       setArticleFile(null);
       setShowAddForm(false);
@@ -114,7 +114,7 @@ function AdminHealthArticles() {
     if (!window.confirm('Are you sure you want to delete this article?')) return;
     try {
       await deleteDoc(doc(db, 'healthArticles', articleId));
-      alert('✅ Article deleted successfully!');
+      alert(' Article deleted successfully!');
       loadArticles();
     } catch (error) {
       console.error('Error deleting article:', error);
@@ -155,19 +155,19 @@ function AdminHealthArticles() {
           <div className="stat-card">
             <div className="stat-card-header">
               <div><div className="stat-card-title">Total Articles</div><div className="stat-card-value">{articles.length}</div></div>
-              <div className="stat-card-icon primary">📚</div>
+              <div className="stat-card-icon primary"></div>
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-card-header">
               <div><div className="stat-card-title">Dummy Articles</div><div className="stat-card-value">{dummyArticles.length}</div></div>
-              <div className="stat-card-icon warning">📌</div>
+              <div className="stat-card-icon warning"></div>
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-card-header">
               <div><div className="stat-card-title">Custom Articles</div><div className="stat-card-value">{firebaseArticles.length}</div></div>
-              <div className="stat-card-icon success">✏️</div>
+              <div className="stat-card-icon success"></div>
             </div>
           </div>
         </div>
@@ -206,11 +206,11 @@ function AdminHealthArticles() {
                   <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                     <label className="form-label">Upload Article File (optional)</label>
                     <input type="file" className="form-input" accept=".pdf,.doc,.docx" onChange={(e) => setArticleFile(e.target.files[0])} style={{ padding: '0.5rem' }} />
-                    {articleFile && <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '0.25rem' }}>✅ {articleFile.name}</div>}
+                    {articleFile && <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '0.25rem' }}> {articleFile.name}</div>}
                   </div>
                 </div>
                 <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem' }} disabled={uploadingArticle}>
-                  {uploadingArticle ? '⏳ Uploading...' : '📄 Add Article'}
+                  {uploadingArticle ? 'Uploading...' : ' Add Article'}
                 </button>
               </form>
             </div>
@@ -276,8 +276,8 @@ function AdminHealthArticles() {
                   <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.4rem', lineHeight: 1.3 }}>{article.title}</h4>
                   <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.75rem', lineHeight: 1.5 }}>{article.excerpt}</p>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: '#94a3b8' }}>
-                    <span>✍️ {article.author}</span>
-                    <span>⏱ {article.readTime}</span>
+                    <span> {article.author}</span>
+                    <span> {article.readTime}</span>
                   </div>
                   <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{article.date}</span>
@@ -287,7 +287,7 @@ function AdminHealthArticles() {
                       disabled={article.isDummy}
                       style={{ fontSize: '0.7rem', padding: '0.3rem 0.6rem', opacity: article.isDummy ? 0.5 : 1 }}
                     >
-                      {article.isDummy ? '🔒' : '🗑️ Delete'}
+                      {article.isDummy ? '' : ' Delete'}
                     </button>
                   </div>
                 </div>
@@ -307,7 +307,7 @@ function AdminHealthArticles() {
             <div className="admin-card-body" style={{ padding: 0 }}>
               {filteredArticles.length === 0 ? (
                 <div className="empty-state">
-                  <div className="empty-state-icon">📄</div>
+                  <div className="empty-state-icon"></div>
                   <h3 className="empty-state-title">No articles found</h3>
                 </div>
               ) : (
@@ -356,7 +356,7 @@ function AdminHealthArticles() {
                             disabled={article.isDummy}
                             style={{ fontSize: '0.75rem', padding: '0.5rem 0.75rem', opacity: article.isDummy ? 0.5 : 1 }}
                           >
-                            {article.isDummy ? '🔒 Locked' : '🗑️ Delete'}
+                            {article.isDummy ? ' Locked' : ' Delete'}
                           </button>
                         </td>
                       </tr>

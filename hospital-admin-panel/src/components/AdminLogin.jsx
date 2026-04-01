@@ -28,7 +28,6 @@ function AdminLogin({ onLogin }) {
       <div className="login-card fade-in">
         <div className="login-header">
           <div className="login-logo">
-            👨‍💼
           </div>
           <h1 className="login-title">Admin Portal</h1>
           <p className="login-subtitle">Health Portal Management System</p>

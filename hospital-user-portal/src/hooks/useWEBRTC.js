@@ -159,7 +159,7 @@ export function useWebRTC({ appointmentId, userId, userName, role }) {
       status:    "calling",
       offer:     { sdp: offer.sdp, type: offer.type },
       createdAt: serverTimestamp(),
-      doctorName: userName,  // ← saved so patient panel can display it
+      doctorName: userName,
     });
     setCallStatus("calling");
 

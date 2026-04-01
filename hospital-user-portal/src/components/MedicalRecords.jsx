@@ -334,19 +334,21 @@ const currentUser = {
   emergencyContact: 'Mr. Rastogi (Father) - +91 98765 43210',
 };
 
-function MedicalRecords() {
+function MedicalRecords({ autoOpenCallAppointmentId }) {
   const [loading, setLoading] = useState(true);
   const [appointments, setAppointments] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
   const [labResults, setLabResults] = useState([]);
   const [activeCalls, setActiveCalls] = useState({});
-  const [openCall, setOpenCall] = useState(null); // ✅ will hold a plain `visit` object
+  const [openCall, setOpenCall] = useState(null);
+  const [callsLoaded, setCallsLoaded] = useState(false);
 
+  // Load appointments, prescriptions, lab results
   useEffect(() => {
     setLoading(true);
     const aRef = query(
       collection(db, 'appointments'),
-      where('patientId', '==', currentUser.uid), // ✅ use uid
+      where('patientId', '==', currentUser.uid),
       orderBy('createdAt', 'desc')
     );
     const unsubA = onSnapshot(aRef, (snap) => {
@@ -377,22 +379,32 @@ function MedicalRecords() {
     return () => { unsubA(); unsubP(); unsubL(); };
   }, []);
 
+  // Load active calls — NO timeout, fires immediately so doctorName is available ASAP
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const unsub = onSnapshot(collection(db, 'calls'), (snap) => {
-        const live = {};
-        snap.docs.forEach((d) => {
-          const data = d.data();
-          if (data.status === 'calling' || data.status === 'active') {
-            live[d.id] = { ...data, callDocId: d.id };  // doctorName is now inside data
-          }
-        });
-        setActiveCalls(live);
+    const unsub = onSnapshot(collection(db, 'calls'), (snap) => {
+      const live = {};
+      snap.docs.forEach((d) => {
+        const data = d.data();
+        if (data.status === 'calling' || data.status === 'active') {
+          live[d.id] = { ...data, callDocId: d.id };
+        }
       });
-      return () => unsub();
-    }, 500);
-    return () => clearTimeout(timer);
+      setActiveCalls(live);
+      setCallsLoaded(true);
+    });
+    return () => unsub();
   }, []);
+
+  // Auto-open VideoCall when navigated here from Appointments "Join Call"
+  // Waits for both appointments AND activeCalls to be ready so doctorName is available
+  useEffect(() => {
+    if (!autoOpenCallAppointmentId) return;
+    if (appointments.length === 0 || !callsLoaded) return;
+    const visit = appointments.find(a => a.id === autoOpenCallAppointmentId);
+    if (!visit) return;
+    const liveCall = Object.values(activeCalls).find(c => c.appointmentId === autoOpenCallAppointmentId);
+    setOpenCall({ ...visit, provider: liveCall?.doctorName || visit.provider });
+  }, [autoOpenCallAppointmentId, appointments, activeCalls, callsLoaded]);
 
   if (loading) return (
     <div style={{ padding: '4rem', textAlign: 'center', fontFamily: 'Plus Jakarta Sans, sans-serif', color: '#7a8e89' }}>
@@ -553,7 +565,6 @@ function MedicalRecords() {
                               <div className="rec-video-box">
                                 <div className="rec-video-box-title">📹 Video Consultation</div>
                                 {liveCall ? (
-                                  // ✅ Pass the visit directly — appointment.id will be defined
                                   <button
                                     onClick={() => setOpenCall({ ...visit, provider: liveCall.doctorName || visit.provider })}
                                     className="rec-join-btn"
@@ -570,7 +581,6 @@ function MedicalRecords() {
                                     <div className="rec-video-box-sub">
                                       Your doctor will start a call when ready.
                                     </div>
-                                    {/* ✅ Patient can also start the call themselves */}
                                     <button
                                       onClick={() => setOpenCall(visit)}
                                       className="rec-join-btn"

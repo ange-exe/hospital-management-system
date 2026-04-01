@@ -23,13 +23,23 @@ export default function VideoCall({ appointment, currentUser, onClose }) {
 
   // Attach streams to video elements
   useEffect(() => {
-    if (localVideoRef.current && localStream)
-      localVideoRef.current.srcObject = localStream;
+    if (!localStream) return;
+    const timer = setTimeout(() => {
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = localStream;
+      }
+    }, 100);
+    return () => clearTimeout(timer);
   }, [localStream]);
 
   useEffect(() => {
-    if (remoteVideoRef.current && remoteStream)
-      remoteVideoRef.current.srcObject = remoteStream;
+    if (!remoteStream) return;
+    const timer = setTimeout(() => {
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = remoteStream;
+      }
+    }, 100);
+    return () => clearTimeout(timer);
   }, [remoteStream]);
 
   // Auto-scroll chat
@@ -58,12 +68,15 @@ export default function VideoCall({ appointment, currentUser, onClose }) {
           <div style={styles.headerLeft}>
             <div style={styles.dot(callStatus)} />
             <span style={styles.headerTitle}>
-              {appointment.provider} — {appointment.patientName}
+              {appointment.provider || "Doctor"} — {appointment.patientName || "Patient"}
             </span>
           </div>
-          <span style={styles.statusBadge(callStatus)}>
-            {STATUS_LABEL[callStatus]}
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={styles.statusBadge(callStatus)}>
+              {STATUS_LABEL[callStatus]}
+            </span>
+            <button onClick={onClose} style={styles.closeBtn}>✕</button>
+          </div>
         </div>
 
         {/* ── Main content ── */}
@@ -110,16 +123,10 @@ export default function VideoCall({ appointment, currentUser, onClose }) {
 
               {(callStatus === "calling" || callStatus === "active") && (
                 <>
-                  <button
-                    style={styles.btn(isMuted ? "yellow" : "gray")}
-                    onClick={toggleMute}
-                  >
+                  <button style={styles.btn(isMuted ? "yellow" : "gray")} onClick={toggleMute}>
                     {isMuted ? "🔇 Unmute" : "🎤 Mute"}
                   </button>
-                  <button
-                    style={styles.btn(isCamOff ? "yellow" : "gray")}
-                    onClick={toggleCamera}
-                  >
+                  <button style={styles.btn(isCamOff ? "yellow" : "gray")} onClick={toggleCamera}>
                     {isCamOff ? "📷 Cam On" : "📹 Cam Off"}
                   </button>
                   <button style={styles.btn("red")} onClick={handleEnd}>
@@ -186,15 +193,20 @@ const STATUS_LABEL = {
 const styles = {
   overlay: {
     position: "fixed", inset: 0,
-    background: "rgba(0,0,0,0.75)",
+    background: "rgba(0,0,0,0.85)",
     display: "flex", alignItems: "center", justifyContent: "center",
-    zIndex: 1000,
+    zIndex: 9999,
+    padding: "8px",           // ← small padding so it never bleeds to edge
+    boxSizing: "border-box",
   },
   container: {
     background: "#0d2137",
     borderRadius: 16,
-    width: "min(95vw, 1000px)",
-    height: "min(90vh, 640px)",
+    // ← key fix: use 100% of available space minus the overlay padding
+    width: "100%",
+    height: "100%",
+    maxWidth: 1000,
+    maxHeight: 640,
     display: "flex", flexDirection: "column",
     overflow: "hidden",
     boxShadow: "0 25px 60px rgba(0,0,0,0.5)",
@@ -202,120 +214,142 @@ const styles = {
   header: {
     display: "flex", alignItems: "center",
     justifyContent: "space-between",
-    padding: "14px 20px",
+    padding: "10px 16px",
     borderBottom: "1px solid rgba(255,255,255,0.08)",
     background: "rgba(255,255,255,0.04)",
+    flexShrink: 0,             // ← never let header get squished
   },
   headerLeft: { display: "flex", alignItems: "center", gap: 10 },
-  headerTitle: { color: "#fff", fontWeight: 600, fontSize: 15 },
+  headerTitle: { color: "#fff", fontWeight: 600, fontSize: 14 },
   dot: (status) => ({
     width: 10, height: 10, borderRadius: "50%",
-    background: status === "active" ? "#38bd9c"
+    background: status === "active"  ? "#38bd9c"
                : status === "calling" ? "#f59e0b"
                : "#6b7280",
+    flexShrink: 0,
   }),
   statusBadge: (status) => ({
-    fontSize: 12, fontWeight: 600, padding: "4px 10px",
+    fontSize: 11, fontWeight: 600, padding: "3px 9px",
     borderRadius: 20,
-    color: status === "active" ? "#38bd9c"
+    color: status === "active"  ? "#38bd9c"
          : status === "calling" ? "#f59e0b"
          : "#9ca3af",
     border: `1px solid ${
-      status === "active" ? "#38bd9c"
+      status === "active"  ? "#38bd9c"
       : status === "calling" ? "#f59e0b"
       : "#374151"
     }`,
   }),
+  closeBtn: {
+    background: "rgba(255,255,255,0.1)",
+    border: "none", color: "white",
+    borderRadius: 8, padding: "4px 10px",
+    cursor: "pointer", fontSize: 13,
+    flexShrink: 0,
+  },
   body: {
-    flex: 1, display: "flex", overflow: "hidden",
+    flex: 1,
+    display: "flex",
+    overflow: "hidden",
+    minHeight: 0,              // ← critical: allows flex children to shrink below content size
   },
   videoSection: {
-    flex: 1, display: "flex", flexDirection: "column",
+    flex: 1,
+    display: "flex", flexDirection: "column",
     background: "#060f1a",
+    minWidth: 0,               // ← prevents overflow in flex row
   },
   remoteWrap: {
-    flex: 1, position: "relative",
+    flex: 1,
+    position: "relative",
     display: "flex", alignItems: "center", justifyContent: "center",
+    minHeight: 0,
+    overflow: "hidden",
   },
   remoteVideo: { width: "100%", height: "100%", objectFit: "cover" },
   waitingScreen: {
     display: "flex", flexDirection: "column",
     alignItems: "center", gap: 12,
   },
-  waitingIcon: { fontSize: 56 },
-  waitingText: { color: "rgba(255,255,255,0.4)", fontSize: 14 },
+  waitingIcon: { fontSize: 48 },
+  waitingText: { color: "rgba(255,255,255,0.4)", fontSize: 13 },
   localWrap: {
-    position: "absolute", bottom: 12, right: 12,
-    width: 140, height: 100, borderRadius: 10,
+    position: "absolute", bottom: 10, right: 10,
+    width: 120, height: 90, borderRadius: 10,
     overflow: "hidden",
     border: "2px solid rgba(255,255,255,0.15)",
     boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
   },
   localVideo: { width: "100%", height: "100%", objectFit: "cover" },
   controls: {
-    display: "flex", gap: 10, justifyContent: "center",
-    padding: "14px 20px",
+    display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap",
+    padding: "10px 16px",
     background: "rgba(255,255,255,0.04)",
     borderTop: "1px solid rgba(255,255,255,0.06)",
+    flexShrink: 0,
   },
   btn: (color) => ({
-    padding: "9px 18px", borderRadius: 8, border: "none",
+    padding: "8px 16px", borderRadius: 8, border: "none",
     fontWeight: 600, fontSize: 13, cursor: "pointer",
     background:
       color === "green"  ? "#059669"
-      : color === "red"  ? "#dc2626"
-      : color === "blue" ? "#2563eb"
+      : color === "red"    ? "#dc2626"
+      : color === "blue"   ? "#2563eb"
       : color === "yellow" ? "#d97706"
       : "#374151",
     color: "#fff",
     transition: "opacity 0.15s",
   }),
   chatSection: {
-    width: 280, display: "flex", flexDirection: "column",
+    width: 260,
+    display: "flex", flexDirection: "column",
     borderLeft: "1px solid rgba(255,255,255,0.08)",
     background: "#0a1929",
+    flexShrink: 0,
+    minHeight: 0,
   },
   chatHeader: {
-    padding: "14px 16px",
-    color: "#fff", fontWeight: 600, fontSize: 14,
+    padding: "12px 14px",
+    color: "#fff", fontWeight: 600, fontSize: 13,
     borderBottom: "1px solid rgba(255,255,255,0.08)",
+    flexShrink: 0,
   },
   chatMessages: {
     flex: 1, overflowY: "auto",
-    padding: "12px 14px",
+    padding: "10px 12px",
     display: "flex", flexDirection: "column", gap: 8,
+    minHeight: 0,
   },
   noMessages: {
-    color: "rgba(255,255,255,0.25)", fontSize: 13, textAlign: "center",
+    color: "rgba(255,255,255,0.25)", fontSize: 12, textAlign: "center",
     marginTop: 20,
   },
   msgRow: (isMe) => ({
     display: "flex", flexDirection: "column",
     alignItems: isMe ? "flex-end" : "flex-start",
   }),
-  msgSender: {
-    fontSize: 11, color: "#38bd9c", marginBottom: 3, paddingLeft: 4,
-  },
+  msgSender: { fontSize: 10, color: "#38bd9c", marginBottom: 3, paddingLeft: 4 },
   msgBubble: (isMe) => ({
-    maxWidth: "85%", padding: "8px 12px",
+    maxWidth: "85%", padding: "7px 11px",
     borderRadius: isMe ? "12px 12px 2px 12px" : "12px 12px 12px 2px",
     background: isMe ? "#38bd9c" : "rgba(255,255,255,0.08)",
     color: isMe ? "#000" : "#fff",
-    fontSize: 13, lineHeight: 1.4,
+    fontSize: 12, lineHeight: 1.4,
   }),
   chatForm: {
-    display: "flex", gap: 8, padding: "12px 14px",
+    display: "flex", gap: 6, padding: "10px 12px",
     borderTop: "1px solid rgba(255,255,255,0.08)",
+    flexShrink: 0,
   },
   chatInput: {
-    flex: 1, padding: "8px 12px", borderRadius: 8,
+    flex: 1, padding: "7px 10px", borderRadius: 8,
     border: "1px solid rgba(255,255,255,0.1)",
     background: "rgba(255,255,255,0.06)",
-    color: "#fff", fontSize: 13, outline: "none",
+    color: "#fff", fontSize: 12, outline: "none",
   },
   sendBtn: {
-    padding: "8px 14px", borderRadius: 8, border: "none",
+    padding: "7px 12px", borderRadius: 8, border: "none",
     background: "#38bd9c", color: "#000",
-    fontWeight: 600, fontSize: 13, cursor: "pointer",
+    fontWeight: 600, fontSize: 12, cursor: "pointer",
   },
 };

@@ -12,6 +12,7 @@ import AdminHealthArticles from './components/AdminHealthArticles';
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentPage, setCurrentPage] = useState('dashboard');
+  const [medicalRecordsPatientId, setMedicalRecordsPatientId] = useState(null); // ← NEW
 
   const handleLogin = () => {
     setIsLoggedIn(true);
@@ -24,14 +25,28 @@ function App() {
     }
   };
 
- const renderPage = () => {
-    switch(currentPage) {
+  // ← NEW: called by AdminAppointments when the 📹 button is clicked
+  const handleNavigateToMedicalRecords = (patientId) => {
+    setMedicalRecordsPatientId(patientId);
+    setCurrentPage('medical-records');
+  };
+
+  const renderPage = () => {
+    switch (currentPage) {
       case 'dashboard':
         return <AdminDashboard />;
       case 'appointments':
-        return <AdminAppointments />;
+        return (
+          <AdminAppointments
+            onNavigateToMedicalRecords={handleNavigateToMedicalRecords} // ← NEW
+          />
+        );
       case 'medical-records':
-        return <AdminMedicalRecords />;
+        return (
+          <AdminMedicalRecords
+            autoSelectPatientId={medicalRecordsPatientId} // ← NEW
+          />
+        );
       case 'doctors':
         return <AdminDoctors />;
       case 'patients':
@@ -49,8 +64,8 @@ function App() {
 
   return (
     <div className="admin-app">
-      <AdminNavbar 
-        currentPage={currentPage} 
+      <AdminNavbar
+        currentPage={currentPage}
         setCurrentPage={setCurrentPage}
         onLogout={handleLogout}
       />

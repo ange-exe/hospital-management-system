@@ -5,34 +5,83 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 
-// Google's public STUN servers — free, no setup needed
 const ICE_SERVERS = {
   iceServers: [
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
+    {
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
   ],
 };
 
 export function useWebRTC({ appointmentId, userId, userName, role }) {
   const [localStream, setLocalStream]   = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
-  const [callStatus, setCallStatus]     = useState("idle"); // idle | calling | active | ended
+  const [callStatus, setCallStatus]     = useState("idle");
   const [messages, setMessages]         = useState([]);
   const [isMuted, setIsMuted]           = useState(false);
   const [isCamOff, setIsCamOff]         = useState(false);
 
-  const pc = useRef(null); // RTCPeerConnection
+  const pc              = useRef(null);
+  const localStreamRef  = useRef(null); // ← mirror of localStream for use inside callbacks
+  const iceCandidates   = useRef([]);
+  const remoteDescSet   = useRef(false);
 
   const callRef = useCallback(
     () => doc(db, "calls", appointmentId),
     [appointmentId]
   );
 
+  // ── Helper: safely add ICE candidate ─────────────────────────────────────
+  const safeAddIceCandidate = useCallback(async (peerConnection, candidate) => {
+    if (!peerConnection || peerConnection.signalingState === "closed") return;
+    if (remoteDescSet.current && peerConnection.remoteDescription) {
+      try {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (e) {
+        console.warn("ICE candidate error (ignored):", e.message);
+      }
+    } else {
+      iceCandidates.current.push(candidate);
+    }
+  }, []);
+
+  // ── Helper: flush queued ICE candidates ──────────────────────────────────
+  const flushIceCandidates = useCallback(async (peerConnection) => {
+    remoteDescSet.current = true;
+    for (const candidate of iceCandidates.current) {
+      try {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (e) {
+        console.warn("Queued ICE candidate error (ignored):", e.message);
+      }
+    }
+    iceCandidates.current = [];
+  }, []);
+
   // ── 1. Get camera + mic ───────────────────────────────────────────────────
   const startLocalStream = useCallback(async () => {
+    // Stop any existing tracks first
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((t) => t.stop());
+    }
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true, audio: true,
     });
+    localStreamRef.current = stream; // ← keep ref in sync
     setLocalStream(stream);
     return stream;
   }, []);
@@ -41,35 +90,44 @@ export function useWebRTC({ appointmentId, userId, userName, role }) {
   const createPeerConnection = useCallback((stream) => {
     const peerConnection = new RTCPeerConnection(ICE_SERVERS);
 
-    // Add local tracks to connection
     stream.getTracks().forEach((track) =>
       peerConnection.addTrack(track, stream)
     );
 
-    // Listen for remote tracks
     const remote = new MediaStream();
     peerConnection.ontrack = (e) => {
-      e.streams[0].getTracks().forEach((track) => remote.addTrack(track));
+      const track = e.track;
+      if (!remote.getTracks().find((t) => t.id === track.id)) {
+        remote.addTrack(track);
+      }
+      setRemoteStream(new MediaStream(remote.getTracks()));
     };
-    setRemoteStream(remote);
+
+    peerConnection.onconnectionstatechange = () => {
+      console.log("[WebRTC] connection state:", peerConnection.connectionState);
+    };
+
+    peerConnection.oniceconnectionstatechange = () => {
+      console.log("[WebRTC] ICE state:", peerConnection.iceConnectionState);
+    };
 
     pc.current = peerConnection;
+    remoteDescSet.current = false;
+    iceCandidates.current = [];
     return peerConnection;
   }, []);
 
-  // ── 3. Start call (caller side) ───────────────────────────────────────────
+  // ── 3. Start call (doctor / admin side) ──────────────────────────────────
   const startCall = useCallback(async () => {
     const stream = await startLocalStream();
     const peerConnection = createPeerConnection(stream);
 
     const callerCandidatesRef = collection(callRef(), "callerCandidates");
 
-    // Save ICE candidates as they are found
     peerConnection.onicecandidate = ({ candidate }) => {
       if (candidate) addDoc(callerCandidatesRef, candidate.toJSON());
     };
 
-    // Create offer
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
 
@@ -82,35 +140,35 @@ export function useWebRTC({ appointmentId, userId, userName, role }) {
 
     setCallStatus("calling");
 
-    // Listen for answer
     onSnapshot(callRef(), async (snap) => {
-  const data = snap.data();
-  if (!peerConnection.currentRemoteDescription && data?.answer) {
-    await peerConnection.setRemoteDescription(
-      new RTCSessionDescription(data.answer)
-    );
-    setCallStatus("active");
-  }
-  if (data?.status === "ended") {
-    pc.current?.close();
-    localStream?.getTracks().forEach((t) => t.stop());
-    setLocalStream(null);
-    setRemoteStream(null);
-    setCallStatus("ended");
-  }
-});
+      const data = snap.data();
+      if (
+        !remoteDescSet.current &&
+        data?.answer &&
+        peerConnection.signalingState !== "closed"
+      ) {
+        await peerConnection.setRemoteDescription(
+          new RTCSessionDescription(data.answer)
+        );
+        await flushIceCandidates(peerConnection);
+        setCallStatus("active");
+      }
+      if (data?.status === "ended") {
+        pc.current?.close();
+        setLocalStream(null);
+        setRemoteStream(null);
+        setCallStatus("ended");
+      }
+    });
 
-    // Listen for remote ICE candidates
     onSnapshot(collection(callRef(), "answerCandidates"), (snap) => {
       snap.docChanges().forEach(({ type, doc }) => {
-        if (type === "added") {
-          peerConnection.addIceCandidate(new RTCIceCandidate(doc.data()));
-        }
+        if (type === "added") safeAddIceCandidate(peerConnection, doc.data());
       });
     });
-  }, [appointmentId, startLocalStream, createPeerConnection, callRef]);
+  }, [appointmentId, startLocalStream, createPeerConnection, callRef, flushIceCandidates, safeAddIceCandidate]);
 
-  // ── 4. Answer call (receiver side) ───────────────────────────────────────
+  // ── 4. Answer call (patient side) ─────────────────────────────────────────
   const answerCall = useCallback(async () => {
     const stream = await startLocalStream();
     const peerConnection = createPeerConnection(stream);
@@ -122,9 +180,15 @@ export function useWebRTC({ appointmentId, userId, userName, role }) {
     };
 
     const callData = (await getDoc(callRef())).data();
+    if (!callData?.offer) {
+      console.error("No offer found in call document!");
+      return;
+    }
+
     await peerConnection.setRemoteDescription(
       new RTCSessionDescription(callData.offer)
     );
+    await flushIceCandidates(peerConnection);
 
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
@@ -136,36 +200,59 @@ export function useWebRTC({ appointmentId, userId, userName, role }) {
 
     setCallStatus("active");
 
-    // Listen for caller ICE candidates
     onSnapshot(collection(callRef(), "callerCandidates"), (snap) => {
       snap.docChanges().forEach(({ type, doc }) => {
-        if (type === "added") {
-          peerConnection.addIceCandidate(new RTCIceCandidate(doc.data()));
-        }
+        if (type === "added") safeAddIceCandidate(peerConnection, doc.data());
       });
     });
 
-    // Listen for call end
     onSnapshot(callRef(), (snap) => {
-  if (snap.data()?.status === "ended") {
-    pc.current?.close();
-    localStream?.getTracks().forEach((t) => t.stop());
-    setLocalStream(null);
-    setRemoteStream(null);
-    setCallStatus("ended");
-  }
-});
-  }, [appointmentId, startLocalStream, createPeerConnection, callRef]);
+      if (snap.data()?.status === "ended") {
+        pc.current?.close();
+        setLocalStream(null);
+        setRemoteStream(null);
+        setCallStatus("ended");
+      }
+    });
+  }, [appointmentId, startLocalStream, createPeerConnection, callRef, flushIceCandidates, safeAddIceCandidate]);
 
   // ── 5. End call ───────────────────────────────────────────────────────────
   const endCall = useCallback(async () => {
+    // 1. Stop all sender tracks (turns off camera/mic indicator light)
+    pc.current?.getSenders().forEach((s) => {
+      if (s.track) s.track.stop();
+    });
+
+    // 2. Also stop directly from the stream ref (belt-and-suspenders)
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((t) => t.stop());
+      localStreamRef.current = null;
+    }
+
+    // 3. Close the peer connection
     pc.current?.close();
-    localStream?.getTracks().forEach((t) => t.stop());
+    pc.current = null;
+
+    // 4. Clear state
     setLocalStream(null);
     setRemoteStream(null);
     setCallStatus("ended");
-    await updateDoc(callRef(), { status: "ended" }).catch(() => {});
-  }, [localStream, callRef]);
+    setIsMuted(false);
+    setIsCamOff(false);
+    remoteDescSet.current = false;
+    iceCandidates.current = [];
+
+    // 5. Update Firestore
+    try {
+      const snap = await getDoc(callRef());
+      if (snap.exists()) {
+        await updateDoc(callRef(), { status: "ended" });
+      }
+    } catch (e) {
+      console.warn("endCall cleanup error (ignored):", e.message);
+    }
+  }, [callRef]);
+  // ← note: removed `localStream` from deps, we use localStreamRef instead
 
   // ── 6. Send chat message ──────────────────────────────────────────────────
   const sendMessage = useCallback(async (text) => {
@@ -185,23 +272,36 @@ export function useWebRTC({ appointmentId, userId, userName, role }) {
       (snap) => {
         const msgs = snap.docs
           .map((d) => ({ id: d.id, ...d.data() }))
-          .sort((a, b) => a.timestamp?.seconds - b.timestamp?.seconds);
+          .sort((a, b) => (a.timestamp?.seconds ?? 0) - (b.timestamp?.seconds ?? 0));
         setMessages(msgs);
       }
     );
     return unsub;
   }, [appointmentId]);
 
-  // ── 8. Toggle mute / camera ───────────────────────────────────────────────
+  // ── 8. Cleanup on unmount ─────────────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      // If component unmounts without calling endCall, still kill the camera
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((t) => t.stop());
+        localStreamRef.current = null;
+      }
+      pc.current?.getSenders().forEach((s) => s.track?.stop());
+      pc.current?.close();
+    };
+  }, []);
+
+  // ── 9. Toggle mute / camera ───────────────────────────────────────────────
   const toggleMute = useCallback(() => {
-    localStream?.getAudioTracks().forEach((t) => (t.enabled = !t.enabled));
+    localStreamRef.current?.getAudioTracks().forEach((t) => (t.enabled = !t.enabled));
     setIsMuted((prev) => !prev);
-  }, [localStream]);
+  }, []);
 
   const toggleCamera = useCallback(() => {
-    localStream?.getVideoTracks().forEach((t) => (t.enabled = !t.enabled));
+    localStreamRef.current?.getVideoTracks().forEach((t) => (t.enabled = !t.enabled));
     setIsCamOff((prev) => !prev);
-  }, [localStream]);
+  }, []);
 
   return {
     localStream, remoteStream,

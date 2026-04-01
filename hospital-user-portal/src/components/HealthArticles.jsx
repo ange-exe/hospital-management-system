@@ -424,7 +424,7 @@ function HealthArticles() {
             <div key={r.title} className="ha-research-item">
               <div className="ha-research-title">{r.title}</div>
               <div className="ha-research-meta">
-                <span>📖 {r.source}</span>
+                <span> {r.source}</span>
                 <span>🗓 {r.date}</span>
               </div>
               <p className="ha-research-summary">{r.summary}</p>

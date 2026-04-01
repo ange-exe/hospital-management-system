@@ -42,7 +42,6 @@ const styles = `
     padding: 0 2rem;
   }
 
-  /* ── Next banner ── */
   .rec-next-banner {
     background: linear-gradient(135deg, #2d5a4f, #3d7a6f);
     border-radius: 14px;
@@ -70,7 +69,6 @@ const styles = `
 
   .rec-next-detail { font-size: 0.9rem; color: rgba(255,255,255,0.92); margin: 0; font-weight: 500; }
 
-  /* ── Card ── */
   .rec-card {
     background: #fff;
     border-radius: 18px;
@@ -98,7 +96,6 @@ const styles = `
 
   .rec-card-body { padding: 1.5rem 1.75rem; }
 
-  /* ── Badge ── */
   .rec-badge {
     display: inline-flex;
     align-items: center;
@@ -113,7 +110,6 @@ const styles = `
   .rec-badge-pending  { background: #fef3c7; color: #92400e; }
   .rec-badge-cancelled{ background: #fee2e2; color: #991b1b; }
 
-  /* ── Info grid (personal info) ── */
   .rec-info-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -144,7 +140,6 @@ const styles = `
     color: #1c3530;
   }
 
-  /* ── Prescription item ── */
   .rec-rx-item {
     background: #faf8f4;
     border-radius: 14px;
@@ -182,7 +177,6 @@ const styles = `
   .rec-rx-meta-label { color: #a0b5b0; font-weight: 500; margin-bottom: 0.15rem; font-size: 0.7rem; }
   .rec-rx-meta-value { color: #1c3530; font-weight: 600; }
 
-  /* ── Timeline ── */
   .rec-timeline {
     position: relative;
     padding-left: 1.5rem;
@@ -244,7 +238,6 @@ const styles = `
 
   .rec-timeline-content p { color: #5a7a74; margin: 0 0 0.25rem; }
 
-  /* ── QR strip inside timeline ── */
   .rec-qr-strip {
     margin-top: 1rem;
     padding: 1rem;
@@ -294,7 +287,6 @@ const styles = `
 
   .rec-join-btn:hover { background: #047857; }
 
-  /* ── Lab results ── */
   .rec-lab-item {
     background: #faf8f4;
     border-radius: 14px;
@@ -316,17 +308,11 @@ const styles = `
 
   .rec-lab-row { color: #5a7a74; margin: 0 0 0.2rem; }
 
-  /* ── Empty ── */
   .rec-empty {
     padding: 2.5rem;
     text-align: center;
     color: #a0b5b0;
     font-size: 0.875rem;
-  }
-
-  @keyframes hpFadeUp {
-    from { opacity: 0; transform: translateY(16px); }
-    to   { opacity: 1; transform: translateY(0); }
   }
 
   @keyframes dot-pulse {
@@ -335,37 +321,58 @@ const styles = `
   }
 `;
 
+// ✅ currentUser now uses `uid` consistently (matches what VideoCall + useWebRTC expect)
+const currentUser = {
+  uid: 'STU-2024-1847',
+  displayName: 'Raju Rastogi',
+  email: '',
+  role: 'patient',
+  studentId: 'STU-2024-1847',
+  dateOfBirth: 'March 15, 2006',
+  bloodType: 'O+',
+  allergies: 'Penicillin, Peanuts',
+  emergencyContact: 'Mr. Rastogi (Father) - +91 98765 43210',
+};
+
 function MedicalRecords() {
   const [loading, setLoading] = useState(true);
   const [appointments, setAppointments] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
   const [labResults, setLabResults] = useState([]);
   const [activeCalls, setActiveCalls] = useState({});
-  const [openCall, setOpenCall] = useState(null);
-
-  const currentUser = {
-    id: 'STU-2024-1847',
-    name: 'Raju Rastogi',
-    studentId: 'STU-2024-1847',
-    dateOfBirth: 'March 15, 2006',
-    bloodType: 'O+',
-    allergies: 'Penicillin, Peanuts',
-    emergencyContact: 'Mr. Rastogi (Father) - +9198765 43210'
-  };
+  const [openCall, setOpenCall] = useState(null); // ✅ will hold a plain `visit` object
 
   useEffect(() => {
     setLoading(true);
-    const aRef = query(collection(db, 'appointments'), where('patientId', '==', currentUser.id), orderBy('createdAt', 'desc'));
+    const aRef = query(
+      collection(db, 'appointments'),
+      where('patientId', '==', currentUser.uid), // ✅ use uid
+      orderBy('createdAt', 'desc')
+    );
     const unsubA = onSnapshot(aRef, (snap) => {
       setAppointments(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
     }, (e) => { console.error(e); setLoading(false); });
 
-    const pRef = query(collection(db, 'prescriptions'), where('patientId', '==', currentUser.id), orderBy('createdAt', 'desc'));
-    const unsubP = onSnapshot(pRef, (snap) => setPrescriptions(snap.docs.map(d => ({ id: d.id, ...d.data() }))), console.error);
+    const pRef = query(
+      collection(db, 'prescriptions'),
+      where('patientId', '==', currentUser.uid),
+      orderBy('createdAt', 'desc')
+    );
+    const unsubP = onSnapshot(pRef, (snap) =>
+      setPrescriptions(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      console.error
+    );
 
-    const lRef = query(collection(db, 'labResults'), where('patientId', '==', currentUser.id), orderBy('createdAt', 'desc'));
-    const unsubL = onSnapshot(lRef, (snap) => setLabResults(snap.docs.map(d => ({ id: d.id, ...d.data() }))), console.error);
+    const lRef = query(
+      collection(db, 'labResults'),
+      where('patientId', '==', currentUser.uid),
+      orderBy('createdAt', 'desc')
+    );
+    const unsubL = onSnapshot(lRef, (snap) =>
+      setLabResults(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      console.error
+    );
 
     return () => { unsubA(); unsubP(); unsubL(); };
   }, []);
@@ -376,7 +383,9 @@ function MedicalRecords() {
         const live = {};
         snap.docs.forEach((d) => {
           const data = d.data();
-          if (data.status === 'calling' || data.status === 'active') live[d.id] = { ...data, callDocId: d.id };
+          if (data.status === 'calling' || data.status === 'active') {
+            live[d.id] = { ...data, callDocId: d.id };  // doctorName is now inside data
+          }
         });
         setActiveCalls(live);
       });
@@ -385,9 +394,15 @@ function MedicalRecords() {
     return () => clearTimeout(timer);
   }, []);
 
-  if (loading) return <div style={{ padding: '4rem', textAlign: 'center', fontFamily: 'Plus Jakarta Sans, sans-serif', color: '#7a8e89' }}>Loading records…</div>;
+  if (loading) return (
+    <div style={{ padding: '4rem', textAlign: 'center', fontFamily: 'Plus Jakarta Sans, sans-serif', color: '#7a8e89' }}>
+      Loading records…
+    </div>
+  );
 
-  const activeAppts = appointments.filter(a => a.status !== 'completed' && a.status !== 'cancelled').sort((a, b) => new Date(a.date) - new Date(b.date));
+  const activeAppts = appointments
+    .filter(a => a.status !== 'completed' && a.status !== 'cancelled')
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
 
   const getBadgeClass = (status) => {
     if (status === 'confirmed' || status === 'completed') return 'rec-badge-success';
@@ -406,10 +421,11 @@ function MedicalRecords() {
     <div className="rec-root">
       <style>{styles}</style>
 
+      {/* ✅ openCall is now the plain visit object, so appointment.id is defined */}
       {openCall && (
         <VideoCall
           appointment={openCall}
-          currentUser={{ uid: currentUser.id, displayName: currentUser.name, email: '', role: 'patient' }}
+          currentUser={currentUser}
           onClose={() => setOpenCall(null)}
         />
       )}
@@ -442,7 +458,7 @@ function MedicalRecords() {
           <div className="rec-card-body">
             <div className="rec-info-grid">
               {[
-                ['Full Name', currentUser.name],
+                ['Full Name', currentUser.displayName],
                 ['Student ID', currentUser.studentId],
                 ['Date of Birth', currentUser.dateOfBirth],
                 ['Blood Type', currentUser.bloodType],
@@ -505,16 +521,20 @@ function MedicalRecords() {
             ) : (
               <div className="rec-timeline">
                 {appointments.map((visit) => {
-                  const liveCall = Object.values(activeCalls).find(c => c.appointmentId === visit.id) || (Object.values(activeCalls)[0] || null);
+                  // ✅ Match live call by appointmentId stored in the call doc
+                  const liveCall = Object.values(activeCalls).find(
+                    c => c.appointmentId === visit.id
+                  ) ?? null;
+
                   return (
                     <div key={visit.id} className="rec-timeline-item">
                       <div className="rec-timeline-date">{visit.date}</div>
                       <div className="rec-timeline-content">
                         <h4>{visit.appointmentType || visit.reasonForVisit || 'Appointment'}</h4>
-                        {visit.provider && <p><strong>Provider:</strong> {visit.provider}</p>}
+                        {visit.provider   && <p><strong>Provider:</strong> {visit.provider}</p>}
                         {visit.department && <p><strong>Department:</strong> {visit.department}</p>}
-                        {visit.diagnosis && <p><strong>Diagnosis:</strong> {visit.diagnosis}</p>}
-                        {visit.notes && <p><strong>Notes:</strong> {visit.notes}</p>}
+                        {visit.diagnosis  && <p><strong>Diagnosis:</strong> {visit.diagnosis}</p>}
+                        {visit.notes      && <p><strong>Notes:</strong> {visit.notes}</p>}
                         <p>
                           <strong>Status: </strong>
                           <span className={`rec-badge ${getBadgeClass(visit.status)}`}>{statusLabel(visit.status)}</span>
@@ -533,17 +553,32 @@ function MedicalRecords() {
                               <div className="rec-video-box">
                                 <div className="rec-video-box-title">📹 Video Consultation</div>
                                 {liveCall ? (
+                                  // ✅ Pass the visit directly — appointment.id will be defined
                                   <button
-                                    onClick={() => setOpenCall({ appointment: visit, callDocId: liveCall.callDocId })}
+                                    onClick={() => setOpenCall({ ...visit, provider: liveCall.doctorName || visit.provider })}
                                     className="rec-join-btn"
                                   >
-                                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#a7f3d0', display: 'inline-block', animation: 'dot-pulse 1.2s ease-in-out infinite' }} />
+                                    <span style={{
+                                      width: 8, height: 8, borderRadius: '50%',
+                                      background: '#a7f3d0', display: 'inline-block',
+                                      animation: 'dot-pulse 1.2s ease-in-out infinite'
+                                    }} />
                                     Join Call — Doctor is waiting
                                   </button>
                                 ) : (
-                                  <div className="rec-video-box-sub">
-                                    Your doctor will start a call when ready. You'll see a Join button here.
-                                  </div>
+                                  <>
+                                    <div className="rec-video-box-sub">
+                                      Your doctor will start a call when ready.
+                                    </div>
+                                    {/* ✅ Patient can also start the call themselves */}
+                                    <button
+                                      onClick={() => setOpenCall(visit)}
+                                      className="rec-join-btn"
+                                      style={{ background: '#2563eb', marginTop: '0.5rem' }}
+                                    >
+                                      📞 Start Call
+                                    </button>
+                                  </>
                                 )}
                               </div>
                             </div>
@@ -572,21 +607,23 @@ function MedicalRecords() {
               labResults.map((lab) => (
                 <div key={lab.id} className="rec-lab-item">
                   <div className="rec-lab-name">{lab.testName}</div>
-                  {lab.result && <div className="rec-lab-row"><strong>Result:</strong> {lab.result}</div>}
+                  {lab.result      && <div className="rec-lab-row"><strong>Result:</strong> {lab.result}</div>}
                   {lab.normalRange && <div className="rec-lab-row"><strong>Normal Range:</strong> {lab.normalRange}</div>}
-                  {lab.notes && <div className="rec-lab-row"><strong>Notes:</strong> {lab.notes}</div>}
-                  {lab.imageUrl && (
+                  {lab.notes       && <div className="rec-lab-row"><strong>Notes:</strong> {lab.notes}</div>}
+                  {lab.imageUrl    && (
                     <a href={lab.imageUrl} target="_blank" rel="noopener noreferrer" style={{
                       display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
                       marginTop: '0.75rem', padding: '0.45rem 0.9rem',
                       background: 'rgba(61,122,111,0.1)', color: '#2d5a4f',
                       borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600,
-                      textDecoration: 'none', transition: 'background 0.15s'
+                      textDecoration: 'none',
                     }}>
                       📄 View Scan/Report
                     </a>
                   )}
-                  <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#a0b5b0', fontWeight: 500 }}>Date: {lab.date}</div>
+                  <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#a0b5b0', fontWeight: 500 }}>
+                    Date: {lab.date}
+                  </div>
                 </div>
               ))
             )}
@@ -594,13 +631,6 @@ function MedicalRecords() {
         </div>
 
       </div>
-
-      <style>{`
-        @keyframes dot-pulse {
-          0%,100% { transform:scale(1); opacity:1; }
-          50%      { transform:scale(1.7); opacity:.4; }
-        }
-      `}</style>
     </div>
   );
 }

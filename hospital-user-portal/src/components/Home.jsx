@@ -371,10 +371,10 @@ function Home({ setCurrentPage }) {
   }, []);
 
   const features = [
-    { ico: '📋', title: 'Medical Records',  page: 'records',      desc: 'Access your complete medical history, test results, prescriptions, and treatment plans anytime.' },
-    { ico: '📅', title: 'Easy Scheduling',  page: 'appointments', desc: 'Book appointments with healthcare providers at your convenience, including urgent care.' },
-    { ico: '🧾', title: 'Receipts',         page: 'receipts',     desc: 'View your billing history, payment status, and itemized receipts for all past visits.' },
-    { ico: '📚', title: 'Health Resources', page: 'articles',     desc: 'Stay informed with curated health articles, research updates, and wellness tips.' },
+    { ico: '', title: 'Medical Records',  page: 'records',      desc: 'Access your complete medical history, test results, prescriptions, and treatment plans anytime.' },
+    { ico: '', title: 'Easy Scheduling',  page: 'appointments', desc: 'Book appointments with healthcare providers at your convenience, including urgent care.' },
+    { ico: '', title: 'Receipts',         page: 'receipts',     desc: 'View your billing history, payment status, and itemized receipts for all past visits.' },
+    { ico: '', title: 'Health Resources', page: 'articles',     desc: 'Stay informed with curated health articles, research updates, and wellness tips.' },
   ];
 
   const announcements = [

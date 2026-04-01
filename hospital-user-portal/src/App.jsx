@@ -11,16 +11,31 @@ import Login from './components/Login';
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [medicalRecordsAppointmentId, setMedicalRecordsAppointmentId] = useState(null); // NEW
+
+  // NEW — called by Appointments when the patient clicks "Join Call"
+  const handleNavigateToMedicalRecords = (appointmentId) => {
+    setMedicalRecordsAppointmentId(appointmentId);
+    setCurrentPage('records');
+  };
 
   const renderPage = () => {
-    switch(currentPage) {
+    switch (currentPage) {
       case 'home':
         return <Home setCurrentPage={setCurrentPage} />;
       case 'records':
-        return <MedicalRecords />;
+        return (
+          <MedicalRecords
+            autoOpenCallAppointmentId={medicalRecordsAppointmentId} // NEW
+          />
+        );
       case 'appointments':
-        return <Appointments />;
+        return (
+          <Appointments
+            onNavigateToMedicalRecords={handleNavigateToMedicalRecords} // NEW
+          />
+        );
       case 'articles':
         return <HealthArticles />;
       case 'receipts':
@@ -30,17 +45,17 @@ const [currentUser, setCurrentUser] = useState(null);
     }
   };
 
-if (!isLoggedIn) {
-  return <Login onLogin={(user) => { setCurrentUser(user); setIsLoggedIn(true); }} />;
-}
+  if (!isLoggedIn) {
+    return <Login onLogin={(user) => { setCurrentUser(user); setIsLoggedIn(true); }} />;
+  }
 
   return (
     <div className="app">
       <Navbar
-  currentPage={currentPage}
-  setCurrentPage={setCurrentPage}
-  onLogout={() => setIsLoggedIn(false)}
-/>
+        currentPage={currentPage}
+        setCurrentPage={setCurrentPage}
+        onLogout={() => setIsLoggedIn(false)}
+      />
       <main className="main-content">
         {renderPage()}
       </main>

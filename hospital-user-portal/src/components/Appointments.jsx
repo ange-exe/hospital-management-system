@@ -723,7 +723,7 @@ const styles = `
   }
 `;
 
-function Appointments() {
+function Appointments({ onNavigateToMedicalRecords }) {
   const [formData, setFormData] = useState({
     reasonForVisit: '',
     customReason: '',
@@ -1192,7 +1192,7 @@ function Appointments() {
                     <div className="appt-item-actions">
                       {liveCall && (
                         <button
-                          onClick={() => setOpenCall({ appointment: appt, callDocId: liveCall.callDocId })}
+                          onClick={() => onNavigateToMedicalRecords ? onNavigateToMedicalRecords(appt.id) : setOpenCall({ appointment: appt, callDocId: liveCall.callDocId })}
                           className="appt-action-btn appt-action-btn-join"
                         >
                           <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#a7f3d0', display: 'inline-block', marginRight: 5, animation: 'dot-pulse 1.2s ease-in-out infinite' }} />

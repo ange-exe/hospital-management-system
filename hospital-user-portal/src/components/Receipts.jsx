@@ -284,7 +284,7 @@ function Receipts() {
                 {/* Summary row */}
                 <div className="rct-row">
                   <div className="rct-row-left">
-                    <div className="rct-icon">🧾</div>
+                    <div className="rct-icon"></div>
                     <div>
                       <div className="rct-provider">{receipt.department} — {receipt.provider}</div>
                       <div className="rct-meta">{receipt.visitDate} · {receipt.receiptNumber}</div>

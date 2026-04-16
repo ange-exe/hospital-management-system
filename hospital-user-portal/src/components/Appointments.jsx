@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import { collection, addDoc, getDocs, onSnapshot, query, orderBy, where, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { QRCodeSVG } from 'qrcode.react';
+import FeedbackModal from './FeedbackModal';
 import Vapi from '@vapi-ai/web';
 import VideoCall from './VideoCall';
 
@@ -751,6 +752,9 @@ function Appointments({ onNavigateToMedicalRecords }) {
   const [showTranscript, setShowTranscript] = useState(false);
   const [pastTranscripts, setPastTranscripts] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [feedbackAppt, setFeedbackAppt] = useState(null);
+  const [doctors, setDoctors] = useState([]);
+  const [docSort, setDocSort] = useState('rating'); // 'rating' or 'experience'
   const transcriptEndRef = useRef(null);
   const timerRef = useRef(null);
   const transcriptRef = useRef([]);
@@ -782,9 +786,14 @@ function Appointments({ onNavigateToMedicalRecords }) {
   };
 
   const getAvailableProviders = () => {
-    if (!formData.department) return ['Please select a department first'];
-    return [...(allDoctors[formData.department] || []), 'Any Available Provider'];
-  };
+  if (!formData.department) return [];
+  return doctors
+    .filter(d => d.department === formData.department)
+    .sort((a, b) => docSort === 'rating'
+      ? (b.avgRating || 0) - (a.avgRating || 0)
+      : (b.experience || 0) - (a.experience || 0)
+    );
+};
 
   const handleVapiBooking = async (params) => {
     console.log('VAPI params received:', params);
@@ -874,6 +883,28 @@ function Appointments({ onNavigateToMedicalRecords }) {
   const [activeCalls, setActiveCalls] = useState({});
   const [openCall, setOpenCall] = useState(null);
 
+useEffect(() => {
+  const fetchRatings = async () => {
+    try {
+      const feedbackSnap = await getDocs(collection(db, 'feedback'));
+      const allFeedback = [];
+      feedbackSnap.forEach(d => allFeedback.push(d.data()));
+
+      const merged = initialDoctors.map(doctor => {
+        const doctorFeedback = allFeedback.filter(f => f.doctorName === doctor.name);
+        if (doctorFeedback.length === 0) return doctor;
+        const avg = doctorFeedback.reduce((sum, f) => sum + f.rating, 0) / doctorFeedback.length;
+        return { ...doctor, avgRating: parseFloat(avg.toFixed(1)), totalRatings: doctorFeedback.length };
+      });
+
+      setDoctors(merged);
+    } catch (e) {
+      console.error('Failed to fetch ratings:', e);
+    }
+  };
+  fetchRatings();
+}, []);
+
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'calls'), (snap) => {
       const live = {};
@@ -887,12 +918,20 @@ function Appointments({ onNavigateToMedicalRecords }) {
   }, []);
 
   useEffect(() => {
-    const q = query(collection(db, 'appointments'), where('patientId', '==', 'STU-2024-1847'), where('status', 'in', ['pending', 'confirmed']), orderBy('date', 'asc'));
-    const unsub = onSnapshot(q, (snap) => {
-      const list = [];
-      snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
-      setUpcomingAppointments(list.filter(a => a.status !== 'completed' && a.status !== 'cancelled').sort((a, b) => new Date(a.date) - new Date(b.date)));
-    }, (err) => console.error('❌ Error:', err));
+   const q = query(collection(db, 'appointments'), where('patientId', '==', 'STU-2024-1847'), where('status', 'in', ['pending', 'confirmed', 'completed']), orderBy('date', 'asc'));
+const unsub = onSnapshot(q, (snap) => {
+  const list = [];
+  snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
+  setUpcomingAppointments(list.filter(a => a.status !== 'completed' && a.status !== 'cancelled').sort((a, b) => new Date(a.date) - new Date(b.date)));
+
+  // Auto-trigger feedback modal for completed unpaid appointments
+  const needsFeedback = list.find(a => a.status === 'completed' && !a.feedbackGiven);
+const alreadyShown = sessionStorage.getItem(`feedback_shown_${needsFeedback?.id}`);
+if (needsFeedback && !alreadyShown) {
+  sessionStorage.setItem(`feedback_shown_${needsFeedback.id}`, 'true');
+  setFeedbackAppt(needsFeedback);
+}
+}, (err) => console.error('❌ Error:', err));
     return () => unsub();
   }, []);
 
@@ -905,6 +944,26 @@ function Appointments({ onNavigateToMedicalRecords }) {
     });
     return () => unsub();
   }, []);
+
+    const initialDoctors = [
+  { id: '1',  name: 'Dr. Bhandup',             specialization: 'Cardiology',       department: 'Cardiology',       experience: 8,  avgRating: 0, totalRatings: 0 },
+  { id: '2',  name: 'Dr. Dadar',               specialization: 'Cardiology',       department: 'Cardiology',       experience: 5,  avgRating: 0, totalRatings: 0 },
+  { id: '5',  name: 'Dr. Andheri',             specialization: 'Pediatrics',       department: 'Pediatrics',       experience: 9,  avgRating: 0, totalRatings: 0 },
+  { id: '6',  name: 'Dr. Sion',                specialization: 'Pediatrics',       department: 'Pediatrics',       experience: 13, avgRating: 0, totalRatings: 0 },
+  { id: '7',  name: 'Dr. Lower Parel',         specialization: 'Orthopedics',      department: 'Orthopedics',      experience: 1,  avgRating: 0, totalRatings: 0 },
+  { id: '8',  name: 'Dr. Madh',                specialization: 'Orthopedics',      department: 'Orthopedics',      experience: 10, avgRating: 0, totalRatings: 0 },
+  { id: '3',  name: 'Dr. Thane',               specialization: 'General Medicine', department: 'General Medicine', experience: 20, avgRating: 0, totalRatings: 0 },
+  { id: '4',  name: 'Dr. Kurla',               specialization: 'General Medicine', department: 'General Medicine', experience: 5,  avgRating: 0, totalRatings: 0 },
+  { id: '9',  name: 'Dr. Parel',               specialization: 'Mental Health',    department: 'Mental Health',    experience: 12, avgRating: 0, totalRatings: 0 },
+  { id: '10', name: 'Dr. Goregaon',            specialization: 'Mental Health',    department: 'Mental Health',    experience: 2,  avgRating: 0, totalRatings: 0 },
+  { id: '11', name: 'Dr. Ghatkopar',           specialization: 'Dermatology',      department: 'Dermatology',      experience: 3,  avgRating: 0, totalRatings: 0 },
+  { id: '12', name: 'Dr. Matunga Road',        specialization: 'Dermatology',      department: 'Dermatology',      experience: 4,  avgRating: 0, totalRatings: 0 },
+  { id: '13', name: 'Dr. Matunga',             specialization: 'Gynecology',       department: 'Gynecology',       experience: 6,  avgRating: 0, totalRatings: 0 },
+  { id: '14', name: 'Dr. Wadala',              specialization: 'Gynecology',       department: 'Gynecology',       experience: 7,  avgRating: 0, totalRatings: 0 },
+  { id: '15', name: 'Dr. Diva',                specialization: 'Dental',           department: 'Dental',           experience: 11, avgRating: 0, totalRatings: 0 },
+  { id: '16', name: 'Dr. Nahur',               specialization: 'Dental',           department: 'Dental',           experience: 13, avgRating: 0, totalRatings: 0 },
+  { id: '17', name: 'Nurse Chinnapandyan Iyer',specialization: 'Nursing',          department: 'General Medicine', experience: 18, avgRating: 0, totalRatings: 0 },
+];
 
   useEffect(() => { transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [transcript]);
 
@@ -1092,13 +1151,96 @@ function Appointments({ onNavigateToMedicalRecords }) {
                         {departments.map((d) => <option key={d} value={d}>{d}</option>)}
                       </select>
                     </div>
-                    <div className="appt-form-group">
+                    <div className="appt-form-group" style={{ display: 'none' }}>
                       <label htmlFor="provider">Preferred Provider</label>
                       <select id="provider" name="provider" value={formData.provider} onChange={handleChange} disabled={!formData.department}>
                         <option value="">{formData.department ? 'Select provider (optional)' : 'Select department first'}</option>
-                        {getAvailableProviders().map((p) => <option key={p} value={p}>{p}</option>)}
+                        {getAvailableProviders().map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
                       </select>
                     </div>
+                    {/* Doctor Picker */}
+{formData.department && (
+  <div style={{ marginBottom: '1.25rem' }}>
+    {/* Sort toggle */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+      <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#4a6560', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        Sort by:
+      </span>
+      {['rating', 'experience'].map(opt => (
+        <button
+          key={opt}
+          type="button"
+          onClick={() => setDocSort(opt)}
+          style={{
+            padding: '0.3rem 0.85rem',
+            borderRadius: 20,
+            border: '1.5px solid',
+            borderColor: docSort === opt ? '#3d7a6f' : '#e2e8f0',
+            background: docSort === opt ? '#3d7a6f' : '#fff',
+            color: docSort === opt ? '#fff' : '#64748b',
+            fontSize: '0.78rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'Plus Jakarta Sans, sans-serif',
+            transition: 'all 0.15s'
+          }}
+        >
+          {opt === 'rating' ? '⭐ Rating' : '🩺 Experience'}
+        </button>
+      ))}
+    </div>
+
+    {/* Doctor cards */}
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.75rem' }}>
+      {getAvailableProviders().map(doctor => (
+        <div
+          key={doctor.id}
+          onClick={() => setFormData(prev => ({ ...prev, provider: doctor.name }))}
+          style={{
+            padding: '1rem',
+            borderRadius: 12,
+            border: '2px solid',
+            borderColor: formData.provider === doctor.name ? '#3d7a6f' : '#e8edf2',
+            background: formData.provider === doctor.name ? '#f0fdf8' : '#faf8f4',
+            cursor: 'pointer',
+            transition: 'all 0.18s',
+            boxShadow: formData.provider === doctor.name ? '0 0 0 3px rgba(61,122,111,0.15)' : 'none'
+          }}
+        >
+          {/* Avatar */}
+          <div style={{
+            width: 40, height: 40, borderRadius: 10,
+            background: 'linear-gradient(135deg, #2d5a4f, #3d7a6f)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontWeight: 800, fontSize: '0.9rem',
+            marginBottom: '0.6rem'
+          }}>
+            {doctor.name.split(' ').map(w => w[0]).slice(0, 2).join('')}
+          </div>
+
+          <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#1c3530', marginBottom: '0.2rem' }}>
+            {doctor.name}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#3d7a6f', fontWeight: 600, marginBottom: '0.4rem' }}>
+            {doctor.specialization}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#7a8e89' }}>
+            🩺 {doctor.experience} yrs exp
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#7a8e89' }}>
+            ⭐ {doctor.avgRating > 0 ? `${doctor.avgRating} / 5 (${doctor.totalRatings})` : 'No ratings yet'}
+          </div>
+
+          {formData.provider === doctor.name && (
+            <div style={{ marginTop: '0.5rem', fontSize: '0.72rem', fontWeight: 700, color: '#3d7a6f' }}>
+              ✓ Selected
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+)}
                   </div>
 
                   <div className="appt-form-row">
@@ -1321,7 +1463,21 @@ function Appointments({ onNavigateToMedicalRecords }) {
           {vapiStatus === 'active' && <span className="appt-live-dot" />}
         </button>
       </div>
-    </div>
+    {/* Transcript bubble */}
+      <div className="appt-transcript-wrap">
+        ...all the transcript code...
+      </div>
+
+      {/* Feedback Modal */}
+      {feedbackAppt && (
+        <FeedbackModal
+          appointment={feedbackAppt}
+          onClose={() => setFeedbackAppt(null)}
+          onSubmitted={() => setFeedbackAppt(null)}
+        />
+      )}
+
+    </div>  
   );
 }
 

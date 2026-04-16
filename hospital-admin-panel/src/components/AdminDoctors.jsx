@@ -287,23 +287,23 @@ function getInitials(name) {
 const departments = ['General Medicine','Pediatrics','Cardiology','Dermatology','Orthopedics','Mental Health','Gynecology','Dental'];
 
 const initialDoctors = [
-  { id: '1',  name: 'Dr. Bhandup',             specialization: 'Cardiology',       department: 'Cardiology',       phone: '+91 98765 43210', email: 'bhandup@healthportal.com' },
-  { id: '2',  name: 'Dr. Dadar',               specialization: 'Cardiology',       department: 'Cardiology',       phone: '+91 98765 43220', email: 'dadar@healthportal.com' },
-  { id: '5',  name: 'Dr. Andheri',             specialization: 'Pediatrics',       department: 'Pediatrics',       phone: '+91 98765 43212', email: 'andheri@healthportal.com' },
-  { id: '6',  name: 'Dr. Sion',                specialization: 'Pediatrics',       department: 'Pediatrics',       phone: '+91 98765 43222', email: 'sion@healthportal.com' },
-  { id: '7',  name: 'Dr. Lower Parel',         specialization: 'Orthopedics',      department: 'Orthopedics',      phone: '+91 98765 43213', email: 'lowerparel@healthportal.com' },
-  { id: '8',  name: 'Dr. Madh',                specialization: 'Orthopedics',      department: 'Orthopedics',      phone: '+91 98765 43223', email: 'madh@healthportal.com' },
-  { id: '3',  name: 'Dr. Thane',               specialization: 'General Medicine', department: 'General Medicine', phone: '+91 98765 43211', email: 'thane@healthportal.com' },
-  { id: '4',  name: 'Dr. Kurla',               specialization: 'General Medicine', department: 'General Medicine', phone: '+91 98765 43221', email: 'kurla@healthportal.com' },
-  { id: '9',  name: 'Dr. Parel',               specialization: 'Mental Health',    department: 'Mental Health',    phone: '+91 98765 43214', email: 'parel@healthportal.com' },
-  { id: '10', name: 'Dr. Goregaon',            specialization: 'Mental Health',    department: 'Mental Health',    phone: '+91 98765 43224', email: 'goregaon@healthportal.com' },
-  { id: '11', name: 'Dr. Ghatkopar',           specialization: 'Dermatology',      department: 'Dermatology',      phone: '+91 98765 43216', email: 'ghatkopar@healthportal.com' },
-  { id: '12', name: 'Dr. Matunga Road',        specialization: 'Dermatology',      department: 'Dermatology',      phone: '+91 98765 43225', email: 'matungaroad@healthportal.com' },
-  { id: '13', name: 'Dr. Matunga',             specialization: 'Gynecology',       department: 'Gynecology',       phone: '+91 98765 43217', email: 'matunga@healthportal.com' },
-  { id: '14', name: 'Dr. Wadala',              specialization: 'Gynecology',       department: 'Gynecology',       phone: '+91 98765 43226', email: 'wadala@healthportal.com' },
-  { id: '15', name: 'Dr. Diva',                specialization: 'Dental',           department: 'Dental',           phone: '+91 98765 43218', email: 'diva@healthportal.com' },
-  { id: '16', name: 'Dr. Nahur',               specialization: 'Dental',           department: 'Dental',           phone: '+91 98765 43227', email: 'nahur@healthportal.com' },
-  { id: '17', name: 'Nurse Chinnapandyan Iyer',specialization: 'Nursing',          department: 'General Medicine', phone: '+91 98765 43215', email: 'nurse.iyer@healthportal.com' },
+  { id: '1',  name: 'Dr. Bhandup',             specialization: 'Cardiology',       department: 'Cardiology',       phone: '+91 98765 43210', email: 'bhandup@healthportal.com', experience: 8, avgRating: 0, totalRatings: 0 },
+  { id: '2',  name: 'Dr. Dadar',               specialization: 'Cardiology',       department: 'Cardiology',       phone: '+91 98765 43220', email: 'dadar@healthportal.com', experience: 5, avgRating: 0, totalRatings: 0  },
+  { id: '5',  name: 'Dr. Andheri',             specialization: 'Pediatrics',       department: 'Pediatrics',       phone: '+91 98765 43212', email: 'andheri@healthportal.com', experience: 9, avgRating: 0, totalRatings: 0  },
+  { id: '6',  name: 'Dr. Sion',                specialization: 'Pediatrics',       department: 'Pediatrics',       phone: '+91 98765 43222', email: 'sion@healthportal.com', experience: 13, avgRating: 0, totalRatings: 0 },
+  { id: '7',  name: 'Dr. Lower Parel',         specialization: 'Orthopedics',      department: 'Orthopedics',      phone: '+91 98765 43213', email: 'lowerparel@healthportal.com', experience: 1, avgRating: 0, totalRatings: 0 },
+  { id: '8',  name: 'Dr. Madh',                specialization: 'Orthopedics',      department: 'Orthopedics',      phone: '+91 98765 43223', email: 'madh@healthportal.com', experience: 10, avgRating: 0, totalRatings: 0 },
+  { id: '3',  name: 'Dr. Thane',               specialization: 'General Medicine', department: 'General Medicine', phone: '+91 98765 43211', email: 'thane@healthportal.com', experience: 20, avgRating: 0, totalRatings: 0 },
+  { id: '4',  name: 'Dr. Kurla',               specialization: 'General Medicine', department: 'General Medicine', phone: '+91 98765 43221', email: 'kurla@healthportal.com', experience: 5, avgRating: 0, totalRatings: 0  },
+  { id: '9',  name: 'Dr. Parel',               specialization: 'Mental Health',    department: 'Mental Health',    phone: '+91 98765 43214', email: 'parel@healthportal.com', experience: 12, avgRating: 0, totalRatings: 0  },
+  { id: '10', name: 'Dr. Goregaon',            specialization: 'Mental Health',    department: 'Mental Health',    phone: '+91 98765 43224', email: 'goregaon@healthportal.com', experience: 2, avgRating: 0, totalRatings: 0  },
+  { id: '11', name: 'Dr. Ghatkopar',           specialization: 'Dermatology',      department: 'Dermatology',      phone: '+91 98765 43216', email: 'ghatkopar@healthportal.com', experience: 3, avgRating: 0, totalRatings: 0  },
+  { id: '12', name: 'Dr. Matunga Road',        specialization: 'Dermatology',      department: 'Dermatology',      phone: '+91 98765 43225', email: 'matungaroad@healthportal.com',experience: 4, avgRating: 0, totalRatings: 0  },
+  { id: '13', name: 'Dr. Matunga',             specialization: 'Gynecology',       department: 'Gynecology',       phone: '+91 98765 43217', email: 'matunga@healthportal.com', experience: 6, avgRating: 0, totalRatings: 0 },
+  { id: '14', name: 'Dr. Wadala',              specialization: 'Gynecology',       department: 'Gynecology',       phone: '+91 98765 43226', email: 'wadala@healthportal.com', experience: 7, avgRating: 0, totalRatings: 0 },
+  { id: '15', name: 'Dr. Diva',                specialization: 'Dental',           department: 'Dental',           phone: '+91 98765 43218', email: 'diva@healthportal.com', experience: 11, avgRating: 0, totalRatings: 0 },
+  { id: '16', name: 'Dr. Nahur',               specialization: 'Dental',           department: 'Dental',           phone: '+91 98765 43227', email: 'nahur@healthportal.com', experience: 13, avgRating: 0, totalRatings: 0 },
+  { id: '17', name: 'Nurse Chinnapandyan Iyer',specialization: 'Nursing',          department: 'General Medicine', phone: '+91 98765 43215', email: 'nurse.iyer@healthportal.com', experience: 18, avgRating: 0, totalRatings: 0 },
 ];
 
 function AdminDoctors() {
@@ -312,32 +312,70 @@ function AdminDoctors() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingDoctor, setEditingDoctor] = useState(null);
   const [activeDept, setActiveDept] = useState('all');
-  const [formData, setFormData] = useState({ name: '', specialization: '', department: '', phone: '', email: '' });
+  const [formData, setFormData] = useState({ name: '', specialization: '', department: '', phone: '', email: '', experience: '' });
 
   useEffect(() => { loadDoctors(); }, []);
 
   const loadDoctors = async () => {
-    try { setDoctors(initialDoctors); }
-    catch (error) { console.error('Error loading doctors:', error); }
-    finally { setLoading(false); }
-  };
+  try {
+    // 1. Start with hardcoded doctors
+    const base = [...initialDoctors];
+
+    // 2. Fetch all feedback from Firestore
+    const feedbackSnap = await getDocs(collection(db, 'feedback'));
+    const allFeedback = [];
+    feedbackSnap.forEach(d => allFeedback.push(d.data()));
+
+    // 3. Calculate avg rating per doctor and merge
+    const merged = base.map(doctor => {
+      const doctorFeedback = allFeedback.filter(f => f.doctorName === doctor.name);
+      if (doctorFeedback.length === 0) return doctor;
+      const avg = doctorFeedback.reduce((sum, f) => sum + f.rating, 0) / doctorFeedback.length;
+      return { ...doctor, avgRating: parseFloat(avg.toFixed(1)), totalRatings: doctorFeedback.length };
+    });
+
+    setDoctors(merged);
+  } catch (error) {
+    console.error('Error loading doctors:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  const handleAdd = () => {
-    if (!formData.name || !formData.specialization || !formData.department) { alert('Please fill all required fields'); return; }
-    setDoctors([...doctors, { id: Date.now().toString(), ...formData }]);
-    setFormData({ name: '', specialization: '', department: '', phone: '', email: '' });
-    setShowAddForm(false);
+  const handleAdd = async () => {
+  if (!formData.name || !formData.specialization || !formData.department) { 
+    alert('Please fill all required fields'); 
+    return; 
+  }
+  const newDoctor = { 
+    ...formData, 
+    experience: Number(formData.experience) || 0,
+    avgRating: 0, 
+    totalRatings: 0 
   };
+  // save to Firestore
+  const docRef = await addDoc(collection(db, 'doctors'), newDoctor);
+  setDoctors([...doctors, { id: docRef.id, ...newDoctor }]);
+  setFormData({ name: '', specialization: '', department: '', phone: '', email: '', experience: '' });
+  setShowAddForm(false);
+};
 
   const handleEdit = (doctor) => { setEditingDoctor(doctor); setFormData(doctor); setShowAddForm(true); };
 
-  const handleUpdate = () => {
-    setDoctors(doctors.map(d => d.id === editingDoctor.id ? { ...formData, id: editingDoctor.id } : d));
-    setFormData({ name: '', specialization: '', department: '', phone: '', email: '' });
-    setEditingDoctor(null); setShowAddForm(false);
+  const handleUpdate = async () => {
+  const updatedDoctor = { 
+    ...formData, 
+    experience: Number(formData.experience) || 0 
   };
+  // save to Firestore
+  await updateDoc(doc(db, 'doctors', editingDoctor.id), updatedDoctor);
+  setDoctors(doctors.map(d => d.id === editingDoctor.id ? { ...updatedDoctor, id: editingDoctor.id } : d));
+  setFormData({ name: '', specialization: '', department: '', phone: '', email: '', experience: '' });
+  setEditingDoctor(null); 
+  setShowAddForm(false);
+};
 
   const handleDelete = (doctorId) => {
     if (!confirm('Delete this doctor?')) return;
@@ -424,6 +462,18 @@ function AdminDoctors() {
                   <label className="adoc-form-label">Email</label>
                   <input type="email" name="email" className="adoc-form-input" value={formData.email} onChange={handleInputChange} placeholder="doctor@healthportal.com" />
                 </div>
+                <div className="adoc-form-group">
+  <label className="adoc-form-label">Experience (Years)</label>
+  <input 
+    type="number" 
+    name="experience" 
+    className="adoc-form-input" 
+    value={formData.experience} 
+    onChange={handleInputChange} 
+    placeholder="e.g. 8" 
+    min="0" max="50"
+  />
+</div>
               </div>
               <button className="adoc-btn adoc-btn-primary" style={{ marginTop: '1.25rem' }} onClick={editingDoctor ? handleUpdate : handleAdd}>
                 {editingDoctor ? ' Update Doctor' : '+ Add Doctor'}
@@ -470,9 +520,16 @@ function AdminDoctors() {
                     <div className="adoc-doctor-avatar">{getInitials(doctor.name)}</div>
                     <div className="adoc-doctor-name">{doctor.name}</div>
                     <div className="adoc-doctor-spec">{doctor.specialization}</div>
-                    <div className="adoc-doctor-detail"> <span>{doctor.phone || '—'}</span></div>
+                    <div className="adoc-doctor-detail"> <span>{doctor.experience ? `${doctor.experience} yrs experience` : '—'}</span></div>
                     <div className="adoc-doctor-detail"> <span style={{ wordBreak: 'break-all' }}>{doctor.email || '—'}</span></div>
-                    <div className="adoc-doctor-actions">
+                    <div className="adoc-doctor-detail">
+  ⭐ <span>
+    {doctor.avgRating > 0
+      ? `${doctor.avgRating.toFixed(1)} / 5 (${doctor.totalRatings} ratings)`
+      : 'No ratings yet'}
+  </span>
+</div>
+<div className="adoc-doctor-actions">
                       <button className="adoc-btn adoc-btn-secondary adoc-btn-sm" style={{ flex: 1 }} onClick={() => handleEdit(doctor)}> Edit</button>
                       <button className="adoc-btn adoc-btn-danger adoc-btn-sm" style={{ flex: 1 }} onClick={() => handleDelete(doctor.id)}> Delete</button>
                     </div>
